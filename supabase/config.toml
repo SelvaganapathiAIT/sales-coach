@@ -1,0 +1,43 @@
+project_id = "qdvusrwnfzqvemwkuwzo"
+
+[functions.elevenlabs-agent]
+verify_jwt = false
+
+[functions.chat-with-agent]
+verify_jwt = false
+
+[functions.elevenlabs-phone]
+verify_jwt = false
+
+[functions.update-agent-instructions]
+verify_jwt = false
+
+[functions.elevenlabs-websocket]
+verify_jwt = false
+
+[functions.openai-realtime]
+verify_jwt = false
+
+[functions.send-coach-email]
+verify_jwt = false
+
+[functions.text-to-speech]
+verify_jwt = false
+
+[functions.store-conversation-summary]
+verify_jwt = false
+
+[functions.crm-account-query]
+verify_jwt = false
+
+[functions.callproof-sync]
+verify_jwt = false
+
+[functions.email-ai-chat]
+verify_jwt = false
+
+[functions.simple-test-email]
+verify_jwt = false
+
+[functions.callproof-activity]
+verify_jwt = false
