@@ -1,3 +1,14 @@
+-- Ensure helper exists (safe)
+create or replace function public.update_updated_at_column()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
 -- Create coaches table
 create table if not exists public.coaches (
   id uuid primary key default gen_random_uuid(),
@@ -12,32 +23,7 @@ create table if not exists public.coaches (
 
 alter table public.coaches enable row level security;
 
--- Indexes
-create index if not exists idx_coaches_owner on public.coaches(owner_user_id);
-
--- RLS policies for coaches
-create policy if not exists "Owners can manage their coaches"
-  on public.coaches
-  for all
-  using (owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'))
-  with check (owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'));
-
-create policy if not exists "Assigned users can view coaches"
-  on public.coaches
-  for select
-  using (
-    owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin') or exists (
-      select 1 from public.coach_users cu
-      where cu.coach_id = coaches.id and cu.user_id = auth.uid()
-    )
-  );
-
--- Trigger to auto-update updated_at
-create trigger if not exists update_coaches_updated_at
-  before update on public.coaches
-  for each row execute function public.update_updated_at_column();
-
--- Create coach_users linking table
+-- Create coach_users linking table (define once)
 create table if not exists public.coach_users (
   id uuid primary key default gen_random_uuid(),
   coach_id uuid not null references public.coaches(id) on delete cascade,
@@ -48,12 +34,43 @@ create table if not exists public.coach_users (
 
 alter table public.coach_users enable row level security;
 
--- Indexes for coach_users
+-- Indexes
+create index if not exists idx_coaches_owner on public.coaches(owner_user_id);
 create index if not exists idx_coach_users_user on public.coach_users(user_id);
 create index if not exists idx_coach_users_coach on public.coach_users(coach_id);
 
--- RLS: owners can manage assignments, users can view their own
-create policy if not exists "Owners can manage coach assignments"
+-- RLS policies for coaches
+drop policy if exists "Owners can manage their coaches" on public.coaches;
+drop policy if exists "Assigned users can view coaches" on public.coaches;
+
+create policy "Owners can manage their coaches"
+  on public.coaches
+  for all
+  using (owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'))
+  with check (owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'));
+
+create policy "Assigned users can view coaches"
+  on public.coaches
+  for select
+  using (
+    owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin') or exists (
+      select 1 from public.coach_users cu
+      where cu.coach_id = coaches.id and cu.user_id = auth.uid()
+    )
+  );
+
+-- Trigger to auto-update updated_at (drop+create; no IF NOT EXISTS in Postgres)
+drop trigger if exists update_coaches_updated_at on public.coaches;
+
+create trigger update_coaches_updated_at
+  before update on public.coaches
+  for each row execute function public.update_updated_at_column();
+
+-- RLS policies for coach_users
+drop policy if exists "Owners can manage coach assignments" on public.coach_users;
+drop policy if exists "Users can view their own coach assignments" on public.coach_users;
+
+create policy "Owners can manage coach assignments"
   on public.coach_users
   for all
   using (
@@ -71,26 +88,33 @@ create policy if not exists "Owners can manage coach assignments"
     )
   );
 
-create policy if not exists "Users can view their own coach assignments"
+create policy "Users can view their own coach assignments"
   on public.coach_users
   for select
-  using (user_id = auth.uid() or exists (
-    select 1 from public.coaches c
-    where c.id = coach_users.coach_id
-      and (c.owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'))
-  ));
+  using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from public.coaches c
+      where c.id = coach_users.coach_id
+        and (c.owner_user_id = auth.uid() or public.has_role(auth.uid(), 'admin'))
+    )
+  );
 
 -- Add default coach to profiles
 alter table public.profiles
-  add column if not exists default_coach_id uuid references public.coaches(id) on delete set null;
+  add column if not exists default_coach_id uuid
+  references public.coaches(id) on delete set null;
 
--- Optional helpful view permissions: admins can view all
-create policy if not exists "Admins can view all coaches"
+-- Optional admin read policies
+drop policy if exists "Admins can view all coaches" on public.coaches;
+drop policy if exists "Admins can view all coach assignments" on public.coach_users;
+
+create policy "Admins can view all coaches"
   on public.coaches
   for select
   using (public.has_role(auth.uid(), 'admin'));
 
-create policy if not exists "Admins can view all coach assignments"
+create policy "Admins can view all coach assignments"
   on public.coach_users
   for select
   using (public.has_role(auth.uid(), 'admin'));

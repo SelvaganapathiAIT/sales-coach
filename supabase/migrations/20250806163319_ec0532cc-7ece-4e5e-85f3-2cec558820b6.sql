@@ -1,5 +1,5 @@
 -- Create a table to store CRM connections for all supported CRMs
-CREATE TABLE public.crm_connections (
+CREATE TABLE IF NOT EXISTS  public.crm_connections (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   crm_type TEXT NOT NULL, -- 'callproof', 'hubspot', 'salesforce', 'pipedrive', etc.
@@ -18,24 +18,30 @@ CREATE TABLE public.crm_connections (
 
 -- Enable Row Level Security
 ALTER TABLE public.crm_connections ENABLE ROW LEVEL SECURITY;
+-- Create policies for CRM connections
+DROP POLICY IF EXISTS "Users can view their own CRM connections" ON public.crm_connections;
+DROP POLICY IF EXISTS "Users can create their own CRM connections" ON public.crm_connections;
+DROP POLICY IF EXISTS "Users can update their own CRM connections" ON public.crm_connections;
+DROP POLICY IF EXISTS "Users can delete their own CRM connections" ON public.crm_connections;
+
 
 -- Create policies for user access
-CREATE POLICY "Users can view their own CRM connections" 
+create policy "Users can view their own CRM connections" 
 ON public.crm_connections 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own CRM connections" 
+create policy "Users can create their own CRM connections" 
 ON public.crm_connections 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own CRM connections" 
+create policy "Users can update their own CRM connections" 
 ON public.crm_connections 
 FOR UPDATE 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can delete their own CRM connections" 
+create policy "Users can delete their own CRM connections" 
 ON public.crm_connections 
 FOR DELETE 
 USING (auth.uid() = user_id);

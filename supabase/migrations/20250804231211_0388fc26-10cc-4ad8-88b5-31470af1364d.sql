@@ -1,5 +1,5 @@
--- Create table to store conversation history
-CREATE TABLE public.conversation_history (
+-- CREATE TABLE IF NOT EXISTS  to store conversation history
+CREATE TABLE IF NOT EXISTS  public.conversation_history (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   agent_id TEXT NOT NULL,
@@ -18,22 +18,26 @@ CREATE TABLE public.conversation_history (
 ALTER TABLE public.conversation_history ENABLE ROW LEVEL SECURITY;
 
 -- Create policies
-CREATE POLICY "Users can view their own conversation history"
+DROP POLICY IF EXISTS "Users can view their own conversation history" ON public.conversation_history;
+create policy "Users can view their own conversation history"
 ON public.conversation_history
 FOR SELECT
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can insert their own conversation history"
+DROP POLICY IF EXISTS "Users can insert their own conversation history" ON public.conversation_history;
+create policy "Users can insert their own conversation history"
 ON public.conversation_history
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own conversation history"
+DROP POLICY IF EXISTS "Users can update their own conversation history" ON public.conversation_history;
+create policy "Users can update their own conversation history"
 ON public.conversation_history
 FOR UPDATE
 USING (auth.uid() = user_id);
 
 -- Create trigger for updated_at
+
 CREATE TRIGGER update_conversation_history_updated_at
 BEFORE UPDATE ON public.conversation_history
 FOR EACH ROW

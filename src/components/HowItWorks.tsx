@@ -48,22 +48,22 @@ const HowItWorks = () => {
   ];
 
   return (
-    <section id="how-it-works" className="py-20 bg-background">
-      <div className="container mx-auto px-4">
+    <section id="how-it-works" className="py-20 bg-background w-full">
+      <div className="w-full px-4 mx-auto max-w-none 2xl:px-8 3xl:px-12">
         <div className="text-center space-y-4 mb-16">
           <Badge variant="secondary" className="text-accent-foreground">
             How It Works
           </Badge>
-          <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+          <h2 className="text-3xl lg:text-4xl wide:text-5xl ultra:text-6xl font-bold text-foreground">
             Your Personal AI Sales Coach in 4 Simple Steps
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-xl wide:text-2xl ultra:text-3xl text-muted-foreground max-w-4xl wide:max-w-5xl ultra:max-w-6xl mx-auto">
             Get started with world-class sales coaching in minutes, not months.
           </p>
         </div>
 
         {/* Steps */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 mb-20">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 wide:grid-cols-4 ultra:grid-cols-4 gap-8 wide:gap-12 ultra:gap-16 mb-20">
           {steps.map((step, index) => (
             <div key={index} className="relative group">
               <div className="bg-card border border-border rounded-xl p-6 shadow-card hover:shadow-premium transition-all duration-300 h-full">
@@ -113,7 +113,7 @@ const HowItWorks = () => {
             </p>
           </div>
           
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 wide:grid-cols-3 ultra:grid-cols-3 gap-8 wide:gap-12 ultra:gap-16">
             {communicationMethods.map((method, index) => (
               <div key={index} className="text-center group">
                 <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary-light rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-300">

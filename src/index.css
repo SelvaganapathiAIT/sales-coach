@@ -121,3 +121,76 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* For Webkit browsers (Chrome, Edge, Safari) */
+::-webkit-scrollbar {
+  width: 1px; /* super thin */
+  height: 1px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* or very light color */
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(117, 117, 117, 0.1); /* very light */
+  border-radius: 100px;
+  width: 1px;
+  height: 1px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(117, 117, 117, 0.1);
+  border-radius: 100px;
+  width: 1px;
+  height: 1px;
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: 1px;
+  scrollbar-color: rgba(117, 117, 117, 0.1) transparent;
+}
+
+body {
+  overflow: auto;
+  height: 100% !important;
+  width: 100% !important;
+  margin: 0;
+  padding: 0;
+}
+
+#root {
+  width: 100% !important;
+  min-height: 100vh;
+}
+
+/* Full-width utility classes for responsive design */
+.w-screen-full {
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+}
+
+/* Responsive container utilities */
+.container-responsive {
+  width: 100%;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+@media (min-width: 1536px) {
+  .container-responsive {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+@media (min-width: 3440px) {
+  .container-responsive {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}

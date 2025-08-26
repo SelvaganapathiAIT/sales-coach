@@ -1,5 +1,5 @@
 -- Create user profiles table
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS  public.profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
   company_name TEXT,
@@ -14,17 +14,17 @@ CREATE TABLE public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for profile access
-CREATE POLICY "Users can view their own profile" 
+create policy if not exists  "Users can view their own profile" 
 ON public.profiles 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own profile" 
+create policy if not exists  "Users can create their own profile" 
 ON public.profiles 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own profile" 
+create policy if not exists  "Users can update their own profile" 
 ON public.profiles 
 FOR UPDATE 
 USING (auth.uid() = user_id);
@@ -48,22 +48,22 @@ EXECUTE FUNCTION public.update_updated_at_column();
 INSERT INTO storage.buckets (id, name, public) VALUES ('profile-photos', 'profile-photos', true);
 
 -- Create policies for profile photo uploads
-CREATE POLICY "Profile photos are publicly accessible" 
+create policy if not exists  "Profile photos are publicly accessible" 
 ON storage.objects 
 FOR SELECT 
 USING (bucket_id = 'profile-photos');
 
-CREATE POLICY "Users can upload their own profile photo" 
+create policy if not exists  "Users can upload their own profile photo" 
 ON storage.objects 
 FOR INSERT 
 WITH CHECK (bucket_id = 'profile-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
-CREATE POLICY "Users can update their own profile photo" 
+create policy if not exists  "Users can update their own profile photo" 
 ON storage.objects 
 FOR UPDATE 
 USING (bucket_id = 'profile-photos' AND auth.uid()::text = (storage.foldername(name))[1]);
 
-CREATE POLICY "Users can delete their own profile photo" 
+create policy if not exists  "Users can delete their own profile photo" 
 ON storage.objects 
 FOR DELETE 
 USING (bucket_id = 'profile-photos' AND auth.uid()::text = (storage.foldername(name))[1]);

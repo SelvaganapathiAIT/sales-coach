@@ -46,23 +46,15 @@ export const useVoiceCoach = (
 
       // Create audio context - use 16kHz to match ElevenLabs
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
-
+      const supabaseUrl = (process.env.SUPABASE_URL || "").replace(/^https?:\/\//, "wss://");
       // Connect to ElevenLabs via our edge function with authentication
-      let wsUrl = `wss://rfevteftvvniiuihugfk.supabase.co/functions/v1/elevenlabs-websocket`;
-      
+      let wsUrl = `${supabaseUrl}/functions/v1/elevenlabs-websocket`;
+
       // Add auth token as query parameter if user is authenticated
       if (session?.access_token) {
         wsUrl += `?token=${encodeURIComponent(session.access_token)}`;
       }
-      
-      console.log('Connecting to ElevenLabs via:', wsUrl);
-      console.log('User session:', session?.user?.id ? `Authenticated (${session.user.id})` : 'Anonymous');
-      
-      // Update agent instructions with user context before connecting
-      if (session?.user?.id) {
-        console.log('Updating agent instructions with user context...');
-        
-        // Get saved coach settings from localStorage
+      // Get saved coach settings from localStorage
         const savedSettings = localStorage.getItem('coachSettings');
         let coachConfig = null;
         
@@ -74,32 +66,42 @@ export const useVoiceCoach = (
             console.error('Error parsing saved coach settings:', error);
           }
         }
+
+      wsUrl += `&coachId=${encodeURIComponent(coachConfig?.coachId)}`;
+      console.log('Connecting to ElevenLabs via:', wsUrl);
+      console.log('User session:', session?.user?.id ? `Authenticated (${session.user.id})` : 'Anonymous');
+      
+      // // Update agent instructions with user context before connecting
+      // if (session?.user?.id) {
+      //   console.log('Updating agent instructions with user context...');
         
-        try {
-          const { data, error } = await supabase.functions.invoke('update-agent-instructions', {
-            body: {
-              userId: session.user.id,
-              // Include coach settings if available
-              ...(coachConfig && {
-                customInstructions: coachConfig.customInstructions,
-                firstMessage: coachConfig.firstMessage,
-                coachName: coachConfig.coachName,
-                coachingStyle: coachConfig.coachingStyle,
-                roastingLevel: coachConfig.roastingLevel,
-                voiceId: coachConfig.voiceId
-              })
-            }
-          });
+        
+        
+      //   try {
+      //     const { data, error } = await supabase.functions.invoke('update-agent-instructions', {
+      //       body: {
+      //         userId: session.user.id,
+      //         // Include coach settings if available
+      //         ...(coachConfig && {
+      //           customInstructions: coachConfig.customInstructions,
+      //           firstMessage: coachConfig.firstMessage,
+      //           coachName: coachConfig.coachName,
+      //           coachingStyle: coachConfig.coachingStyle,
+      //           roastingLevel: coachConfig.roastingLevel,
+      //           voiceId: coachConfig.voiceId
+      //         })
+      //       }
+      //     });
           
-          if (error) {
-            console.error('Error updating agent instructions:', error);
-          } else {
-            console.log('Agent instructions updated successfully');
-          }
-        } catch (error) {
-          console.error('Failed to update agent instructions:', error);
-        }
-      }
+      //     if (error) {
+      //       console.error('Error updating agent instructions:', error);
+      //     } else {
+      //       console.log('Agent instructions updated successfully');
+      //     }
+      //   } catch (error) {
+      //     console.error('Failed to update agent instructions:', error);
+      //   }
+      // }
       
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;

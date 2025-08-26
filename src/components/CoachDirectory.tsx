@@ -38,13 +38,13 @@ const CoachDirectory = () => {
   }, [defaultEmail]);
 
   return (
-    <section id="coaches" className="py-20 bg-muted/30">
-      <div className="container mx-auto px-4">
+    <section id="coaches" className="py-20 bg-muted/30 w-full">
+      <div className="w-full px-4 mx-auto max-w-none 2xl:px-8 3xl:px-12">
         <div className="text-center space-y-4 mb-12">
-          <h2 className="text-3xl lg:text-4xl font-bold text-foreground">
+          <h2 className="text-3xl lg:text-4xl wide:text-5xl ultra:text-6xl font-bold text-foreground">
             Choose Your Perfect Sales Coach
           </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+          <p className="text-xl wide:text-2xl ultra:text-3xl text-muted-foreground max-w-4xl wide:max-w-5xl ultra:max-w-6xl mx-auto">
             Get coaching from proven sales legends or industry-specific AI managers 
             who understand your exact challenges and opportunities.
           </p>

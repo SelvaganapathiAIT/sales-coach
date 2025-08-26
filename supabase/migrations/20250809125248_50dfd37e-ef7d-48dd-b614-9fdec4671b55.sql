@@ -1,11 +1,16 @@
 -- Storage policies to allow uploading cropped coach photos
 -- Public read for profile-photos bucket
+DROP POLICY IF EXISTS "Public can view profile photos" ON storage.objects;
 create policy "Public can view profile photos"
   on storage.objects
   for select
   using (bucket_id = 'profile-photos');
 
 -- Authenticated users can upload/update/delete within coaches/{userId}/...
+DROP POLICY IF EXISTS "Users can upload to their folder (profile-photos)" ON storage.objects;
+DROP POLICY IF EXISTS "Users can update their files (profile-photos)" ON storage.objects;
+DROP POLICY IF EXISTS "Users can delete their files (profile-photos)" ON storage.objects;
+
 create policy "Users can upload to their folder (profile-photos)"
   on storage.objects
   for insert

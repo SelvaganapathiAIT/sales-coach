@@ -4,7 +4,8 @@ import { Menu, X, User, LogOut } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import AuthModal from './AuthModal';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 const Header = () => {
@@ -13,6 +14,7 @@ const Header = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isCeo, setIsCeo] = useState(false);
 
   // Check for existing user session
   useEffect(() => {
@@ -20,14 +22,14 @@ const Header = () => {
       const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user || null);
     };
-    
+
     checkUser();
-    
+
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null);
     });
-    
+
     return () => subscription.unsubscribe();
   }, []);
 
@@ -37,11 +39,26 @@ const Header = () => {
       supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }).then(({ data, error }) => {
         if (!error) setIsAdmin(!!data);
       });
+
     }, 0);
+    
+    if (!isAdmin) {
+      if (!user?.id) { setIsCeo(false); return; }
+      setTimeout(() => {
+        supabase.rpc('has_role', { _user_id: user.id, _role: 'ceo' }).then(({ data, error }) => {
+          if (!error) setIsCeo(!!data);
+        });
+      }, 0);
+    }
+
   }, [user]);
 
+  const navigate = useNavigate();
+  
   const handleSignOut = async () => {
     const { error } = await supabase.auth.signOut();
+
+    // Show toast notification based on sign out result
     if (error) {
       toast({
         title: "Error",
@@ -53,18 +70,20 @@ const Header = () => {
         title: "Signed Out",
         description: "You have been successfully signed out",
       });
+      localStorage.clear();
+      navigate('/');
     }
   };
 
   return (
     <>
-      <header className="bg-background border-b border-border">
-        <div className="container mx-auto px-4 py-4">
+      <header className="bg-background border-b border-border w-full h-[100%]">
+        <div className="w-full px-4 py-4 mx-auto max-w-none 2xl:px-8 3xl:px-12">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <img 
-                src="/lovable-uploads/728a3509-3701-4108-901b-0d852b1ec407.png" 
-                alt="SalesCoaches.ai Logo" 
+              <img
+                src="/lovable-uploads/728a3509-3701-4108-901b-0d852b1ec407.png"
+                alt="SalesCoaches.ai Logo"
                 className="h-8 w-auto"
               />
             </div>
@@ -73,18 +92,22 @@ const Header = () => {
             <div className="hidden md:flex items-center space-x-4">
               {user ? (
                 <div className="flex items-center space-x-3">
-                  <Link to="/sales-desk">
-                    <Button variant="secondary" size="sm">Sales Desk</Button>
-                  </Link>
-                  <Link to="/coach-management">
-                    <Button variant="outline" size="sm">Coach Management</Button>
-                  </Link>
+                  {(isCeo || isAdmin) && (
+                    <>
+                      <Link to="/sales-desk">
+                        <Button variant="secondary" size="sm">Sales Desk</Button>
+                      </Link>
+                      <Link to="/coach-management">
+                        <Button variant="outline" size="sm">Coach Management</Button>
+                      </Link>
+                    </>
+                  )}
+
                   {isAdmin && (
                     <Link to="/admin">
                       <Button variant="outline" size="sm">Admin</Button>
                     </Link>
                   )}
-
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="sm" className="p-0 rounded-full hover:bg-muted">
@@ -115,8 +138,8 @@ const Header = () => {
                 </div>
               ) : (
                 <>
-                  <Button 
-                    variant="outline" 
+                  <Button
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowAuthModal(true)}
                     className="flex items-center space-x-2"
@@ -130,7 +153,7 @@ const Header = () => {
             </div>
 
             {/* Mobile Menu Button */}
-            <button 
+            <button
               className="md:hidden"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
@@ -163,7 +186,7 @@ const Header = () => {
                           <Button variant="outline" className="w-full">Admin</Button>
                         </Link>
                       )}
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={handleSignOut}
                         className="w-full"
@@ -173,7 +196,7 @@ const Header = () => {
                     </div>
                   ) : (
                     <>
-                      <Button 
+                      <Button
                         variant="outline"
                         onClick={() => setShowAuthModal(true)}
                       >
@@ -188,7 +211,7 @@ const Header = () => {
           )}
         </div>
       </header>
-      
+
       <AuthModal
         isOpen={showAuthModal}
         onClose={() => setShowAuthModal(false)}

@@ -3,7 +3,8 @@ alter table public.profiles
   add column if not exists is_active boolean not null default true;
 
 -- 2) Allow admins to insert profiles (needed to create profiles for users missing one)
-create policy if not exists "Admins can insert profiles"
+drop policy if exists "Admins can insert profiles" on public.profiles;
+create policy "Admins can insert profiles"
   on public.profiles
   for insert
   to authenticated

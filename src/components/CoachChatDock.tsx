@@ -69,6 +69,214 @@ const CoachChatDock: React.FC = () => {
       sendMessage();
     }
   };
+  const renderFormattedContent = (text: string) => {
+    const lines = text.split("\n");
+
+    let currentList: JSX.Element[] = [];
+    let listType: "ul" | null = null;
+    const rendered: JSX.Element[] = [];
+
+    const flushList = () => {
+      if (currentList.length > 0 && listType) {
+        rendered.push(
+          <ul key={`ul-${rendered.length}`} className="ml-3 mb-3 space-y-1">
+            {currentList}
+          </ul>
+        );
+        currentList = [];
+        listType = null;
+      }
+    };
+
+    const formatInline = (line: string) => {
+      const parseLinksAndImages = (text: string): (string | JSX.Element)[] => {
+        const elements: (string | JSX.Element)[] = [];
+        const regex = /(!)?\[(.*?)\]\((https?:\/\/[^)]+)\)/g;
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(text)) !== null) {
+          if (match.index > lastIndex) {
+            elements.push(text.slice(lastIndex, match.index));
+          }
+          const isImage = !!match[1];
+          const altOrText = match[2] || (isImage ? 'View image' : 'link');
+          const url = match[3];
+          if (isImage) {
+            elements.push(
+              <a
+                key={`img-${elements.length}`}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block my-2"
+              >
+                <img
+                  src={url}
+                  alt={altOrText || 'Image'}
+                  className="h-24 w-24 rounded-full object-cover border shadow-sm"
+                  onError={(e) => {
+                    const target = e.currentTarget as HTMLImageElement;
+                    const parent = target.parentElement;
+                    if (parent) {
+                      parent.replaceWith(
+                        Object.assign(document.createElement('a'), {
+                          href: url,
+                          target: '_blank',
+                          rel: 'noopener noreferrer',
+                          textContent: altOrText || url,
+                          className: 'underline text-blue-600 hover:text-blue-700',
+                        })
+                      );
+                    }
+                  }}
+                />
+              </a>
+            );
+          } else {
+            elements.push(
+              <a
+                key={`link-${elements.length}`}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-blue-600 hover:text-blue-700"
+              >
+                {altOrText || url}
+              </a>
+            );
+          }
+          lastIndex = match.index + match[0].length;
+        }
+        if (lastIndex < text.length) {
+          elements.push(text.slice(lastIndex));
+        }
+        return elements;
+      };
+
+      const parts = parseLinksAndImages(line);
+
+      const applyEmphasis = (segment: string, keyPrefix: string) => {
+        if (/\*\*\*.*?\*\*\*/.test(segment)) {
+          return segment.split(/(\*\*\*.*?\*\*\*)/g).map((part, i) =>
+            part.startsWith("***") && part.endsWith("***") ? (
+              <em key={`${keyPrefix}-b+i-${i}`}>
+                <strong>{part.slice(3, -3)}</strong>
+              </em>
+            ) : (
+              part
+            )
+          );
+        }
+
+        if (/\*\*.*?\*\*/.test(segment)) {
+          return segment.split(/(\*\*.*?\*\*)/g).map((part, i) =>
+            part.startsWith("**") && part.endsWith("**") ? (
+              <strong key={`${keyPrefix}-b-${i}`}>{part.slice(2, -2)}</strong>
+            ) : (
+              part
+            )
+          );
+        }
+
+        if (/\*.*?\*/.test(segment)) {
+          return segment.split(/(\*.*?\*)/g).map((part, i) =>
+            part.startsWith("*") && part.endsWith("*") ? (
+              <em key={`${keyPrefix}-i-${i}`}>{part.slice(1, -1)}</em>
+            ) : (
+              part
+            )
+          );
+        }
+
+        return segment;
+      };
+
+      const nodes: (string | JSX.Element)[] = [];
+      parts.forEach((part, idx) => {
+        if (typeof part === 'string') {
+          const emphasized = applyEmphasis(part, `seg-${idx}`);
+          if (Array.isArray(emphasized)) nodes.push(...emphasized);
+          else nodes.push(emphasized);
+        } else {
+          nodes.push(part);
+        }
+      });
+
+      return nodes as any;
+    };
+
+    const normalizedLines: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      const current = lines[i];
+      const next = i + 1 < lines.length ? lines[i + 1] : '';
+      const labelMatch = current.trim().match(/(!)?\[[^\]]+\]\s*$/);
+      const urlMatch = next.trim().match(/^\((https?:\/\/[^)]+)\)$/);
+      if (labelMatch && urlMatch) {
+        normalizedLines.push(`${current.trim()}(${urlMatch[1]})`);
+        i++;
+      } else {
+        normalizedLines.push(current);
+      }
+    }
+
+    normalizedLines.forEach((line, index) => {
+      const trimmed = line.trim();
+
+      if (trimmed === "") {
+        flushList();
+        rendered.push(<div key={`br-${index}`} className="mb-3" />);
+        return;
+      }
+
+      const sectionMatch = trimmed.match(/^([A-Z][A-Za-z ]+):$/);
+      if (sectionMatch) {
+        flushList();
+        rendered.push(
+          <h3 key={`section-${index}`} className="font-semibold text-lg mb-2 text-primary">
+            {sectionMatch[1]}
+          </h3>
+        );
+        return;
+      }
+
+      const headingMatch = trimmed.match(/^(#{1,6})\s+(.*)$/);
+      if (headingMatch) {
+        flushList();
+        const level = headingMatch[1].length;
+        const text = headingMatch[2];
+        const Tag = `h${Math.min(level, 3)}` as keyof JSX.IntrinsicElements;
+        rendered.push(
+          <Tag key={`h-${index}`} className="font-semibold text-lg mb-2 text-primary">
+            {text}
+          </Tag>
+        );
+        return;
+      }
+
+      const listMatch = trimmed.match(/^(?:\d+\.|[-•])\s+(.*)$/);
+      if (listMatch) {
+        if (listType !== "ul") flushList();
+        listType = "ul";
+        currentList.push(
+          <li key={`ul-item-${index}`} className="flex items-start">
+            <span className="mr-2">➡️</span>
+            <span>{formatInline(listMatch[1])}</span>
+          </li>
+        );
+        return;
+      }
+
+      flushList();
+      rendered.push(
+        <p key={`p-${index}`} className="mb-2 text-sm leading-relaxed">
+          {formatInline(trimmed)}
+        </p>
+      );
+    });
+
+    flushList();
+    return rendered;
+  };
 
   return (
     <>
@@ -105,7 +313,7 @@ const CoachChatDock: React.FC = () => {
                               m.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                             )}
                           >
-                            {m.text}
+                            {renderFormattedContent(m.text)}
                           </div>
                         </div>
                       ))}

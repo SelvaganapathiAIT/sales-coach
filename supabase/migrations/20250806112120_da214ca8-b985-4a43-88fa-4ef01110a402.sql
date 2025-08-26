@@ -1,5 +1,5 @@
--- Create table for email conversations
-CREATE TABLE public.email_conversations (
+-- CREATE TABLE IF NOT EXISTS  for email conversations
+CREATE TABLE IF NOT EXISTS  public.email_conversations (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   coach_name TEXT NOT NULL,
@@ -16,12 +16,15 @@ CREATE TABLE public.email_conversations (
 ALTER TABLE public.email_conversations ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for email conversations
-CREATE POLICY "Users can view their own email conversations" 
+DROP POLICY IF EXISTS "Users can view their own email conversations" ON public.email_conversations;
+DROP POLICY IF EXISTS "Users can create their own email conversations" ON public.email_conversations;
+
+create policy "Users can view their own email conversations" 
 ON public.email_conversations 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own email conversations" 
+create policy "Users can create their own email conversations" 
 ON public.email_conversations 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);

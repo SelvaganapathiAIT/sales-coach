@@ -1,34 +1,79 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, MessageSquare, ThumbsUp, ThumbsDown, Send, Play, Users, TrendingUp, Clock, Star, AlertCircle, Shield, Target, FileText, CheckCircle, XCircle, Eye, Filter, Building, User, Mail } from "lucide-react";
-
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { useToast } from "@/hooks/use-toast";
 import { CoachInstructionsManager } from "@/components/CoachInstructionsManager";
-import { EmailComposer } from "@/components/EmailComposer";
-import { CoachWelcomeManager } from "@/components/CoachWelcomeManager";
 import { supabase } from "@/integrations/supabase/client";
+import { TrainingDataManager } from "@/components/TrainingDataManager";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { ConversationThread, ConversationMessage } from "@/components/ConversationThread";
+import { Textarea } from "@/components/ui/textarea";
+import { HomeIcon } from "lucide-react";
+
 
 const CoachTraining = () => {
   const { coachId } = useParams();
   const [searchParams] = useSearchParams();
   const coachName = searchParams.get('name') || 'Coach';
   const { toast } = useToast();
-  
+
   // Coach identity used for communications
   const [coachEmail, setCoachEmail] = useState(searchParams.get('email') || '');
-  const [coachPhone] = useState(searchParams.get('phone') || '');
-  const [coachImageUrl] = useState(searchParams.get('image') || '');
-  const [coachDescription] = useState(searchParams.get('description') || '');
-  
+  const [coachData, setCoachData] = useState<any>(null);
+  useEffect(() => {
+    if (!coachId) return;
+
+    const fetchCoachData = async () => {
+      try {
+        // Fetch coach
+        const { data: coach, error: coachError } = await supabase
+          .from("coaches")
+          .select("*")
+          .eq("id", coachId)
+          .single();
+
+        if (coachError) throw coachError;
+
+        // Start with base coach data
+        let enrichedCoach = { ...coach };
+
+        if (coach?.id) {
+          // Fetch assistant info
+          const { data: assistant, error: assistantError } = await supabase
+            .from("coach_assistants")
+            .select("*")
+            .eq("coach_id", coach.id)
+            .maybeSingle(); // safer than .single()
+
+          if (assistantError) throw assistantError;
+
+          if (assistant) {
+            enrichedCoach = {
+              ...enrichedCoach,
+              system_prompt: assistant.system_prompt,
+              first_message: assistant.first_message,
+              agent_language: assistant.agent_language,
+              llm_model: assistant.llm_model,
+              temperature: assistant.temperature,
+            };
+          }
+
+          console.log("Fetched coach assistants:", assistant);
+        }
+
+        setCoachData(enrichedCoach);
+      } catch (err) {
+        console.error("❌ Error fetching coach:", err);
+      }
+    };
+
+    fetchCoachData();
+  }, [coachId]);
+
+
+
   // Autofill coach email from app settings if not provided
   useEffect(() => {
     if (coachEmail) return;
@@ -44,11 +89,11 @@ const CoachTraining = () => {
       }
     })();
   }, [coachEmail]);
-  
+
   const [feedbackText, setFeedbackText] = useState("");
   const [trainingPrompt, setTrainingPrompt] = useState("");
   const [selectedDraft, setSelectedDraft] = useState<any>(null);
-  
+
   // Filter states
   const [selectedCompany, setSelectedCompany] = useState("all");
   const [selectedRep, setSelectedRep] = useState("all");
@@ -117,7 +162,7 @@ const CoachTraining = () => {
     },
     {
       id: 2,
-      timestamp: "2024-01-15 2:15 PM", 
+      timestamp: "2024-01-15 2:15 PM",
       type: "report",
       recipient: "David Wilson - VP Sales",
       recipientType: "leader",
@@ -132,7 +177,7 @@ const CoachTraining = () => {
     {
       id: 3,
       timestamp: "2024-01-14 4:45 PM",
-      type: "email", 
+      type: "email",
       recipient: "Mike Chen",
       recipientType: "rep",
       company: "SalesBoost LLC",
@@ -148,7 +193,7 @@ const CoachTraining = () => {
       timestamp: "2024-01-14 9:20 AM",
       type: "alert",
       recipient: "Jennifer Martinez - Sales Director",
-      recipientType: "leader", 
+      recipientType: "leader",
       company: "GrowthTech Solutions",
       coach: "Inbound Sales Coach",
       scenario: "Team Performance Alert",
@@ -160,7 +205,7 @@ const CoachTraining = () => {
     {
       id: 5,
       timestamp: "2024-01-13 3:30 PM",
-      type: "call", 
+      type: "call",
       recipient: "Alex Rodriguez",
       recipientType: "rep",
       company: "TechCorp Inc",
@@ -189,7 +234,7 @@ const CoachTraining = () => {
     },
     {
       id: 2,
-      recipient: "Alex Rodriguez", 
+      recipient: "Alex Rodriguez",
       company: "TechCorp Inc",
       coach: "Jack Daly Sales Coach",
       createdAt: "2024-01-15 1:20 PM",
@@ -218,7 +263,7 @@ const CoachTraining = () => {
       coach: "Inbound Sales Coach",
       createdAt: "2024-01-15 4:00 PM",
       triggerReason: "Team performance dip detected (20% below weekly target)",
-      urgency: "high", 
+      urgency: "high",
       draftMessage: "Jennifer, quick heads up: I'm tracking a 20% dip in team activity today. Primary factors: Sarah and Tom are below call targets, Alex needs objection handling support. Recommendation: 15-minute team huddle focusing on energy/motivation, plus I can provide Alex with personalized coaching. This pattern typically rebounds within 24hrs with intervention.",
       suggestedAction: "Leadership alert with action plan",
       aiConfidence: 94
@@ -254,7 +299,7 @@ const CoachTraining = () => {
 
   const handleTraining = () => {
     if (!trainingPrompt.trim()) return;
-    
+
     toast({
       title: "Training Prompt Submitted",
       description: "The coach AI will incorporate this guidance into future responses.",
@@ -264,7 +309,7 @@ const CoachTraining = () => {
 
   const handleGeneralFeedback = () => {
     if (!feedbackText.trim()) return;
-    
+
     toast({
       title: "Feedback Submitted",
       description: "Thank you for your feedback. This will help improve the coach's performance.",
@@ -281,612 +326,206 @@ const CoachTraining = () => {
       });
     } else {
       toast({
-        title: "Draft Rejected", 
+        title: "Draft Rejected",
         description: `Message to ${draft?.recipient} was rejected. The AI will learn from this feedback.`,
       });
     }
     setSelectedDraft(null);
   };
 
+  // Simplified training layout helpers
+  const [instructionText, setInstructionText] = useState("");
+  const [sending, setSending] = useState(false);
+  // Comments handled within ConversationThread component
+
+  const { supported, listening, transcript, start, stop, reset } = useSpeechRecognition();
+
+  const sendInstruction = async () => {
+    const base = (instructionText + (transcript ? (instructionText ? "\n\nVoice: " : "") + transcript : "")).trim();
+    if (!base) return;
+    setSending(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      console.log("Sending instruction:", { coachName, base, userId: user?.id, systemPrompt: coachData?.system_prompt, elevenlabsAgentId: coachData?.agent_id });
+      await supabase.functions.invoke('update-agent-instructions', {
+        body: {
+          coachName,
+          customInstructions: base,
+          firstMessage: coachData?.first_message || null,
+          agentLanguage: coachData?.agent_language || null,
+          llmModel: coachData?.llm_model || null,
+          temperature: coachData?.temperature || null,
+          userId: user?.id || null,
+          systemPrompt: coachData?.system_prompt || null,
+          elevenlabsAgentId: coachData?.agent_id || null,
+        }
+      });
+      toast({ title: 'Instruction sent', description: 'Your guidance will be applied to the coach.' });
+      setInstructionText("");
+      reset();
+    } catch (e: any) {
+      console.error('sendInstruction error', e);
+      toast({ title: 'Failed to send', description: e.message, variant: 'destructive' });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const submitCommentText = async (c: any, text: string) => {
+    try {
+      const payload = `When sending messages like "${c.subject}" to ${c.recipient_email}, improve by: ${text}`;
+      await supabase.functions.invoke('update-agent-instructions', { body: { coachName, customInstructions: payload } });
+      toast({ title: 'Feedback sent', description: 'Thanks! The coach will learn from this.' });
+    } catch (e: any) {
+      console.error('submitComment error', e);
+      toast({ title: 'Failed to send feedback', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  const sampleMessages: ConversationMessage[] = [
+    {
+      id: 'm1',
+      sent_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+      coach_email: coachEmail || 'coach@sample.com',
+      recipient_email: 'me@example.com',
+      subject: '',
+      message: 'Hey, it’s Bobby. Quick check-in: how did the discovery call go?'
+    },
+    {
+      id: 'm2',
+      sent_at: new Date(Date.now() - 1000 * 60 * 25).toISOString(),
+      coach_email: coachEmail || 'coach@sample.com',
+      recipient_email: coachEmail || 'coach@sample.com',
+      subject: '',
+      message: 'Went well! Prospect was engaged, but timeline is tight.'
+    },
+    {
+      id: 'm3',
+      sent_at: new Date(Date.now() - 1000 * 60 * 20).toISOString(),
+      coach_email: coachEmail || 'coach@sample.com',
+      recipient_email: 'me@example.com',
+      subject: '',
+      message: 'Good. Follow up with a concise recap and a next-step ask for a 20‑min technical review.'
+    },
+    {
+      id: 'm4',
+      sent_at: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      coach_email: coachEmail || 'coach@sample.com',
+      recipient_email: coachEmail || 'coach@sample.com',
+      subject: '',
+      message: 'Got it. I’ll propose Thursday 10am and include a brief ROI bullet list.'
+    },
+    {
+      id: 'm5',
+      sent_at: new Date(Date.now() - 1000 * 60 * 10).toISOString(),
+      coach_email: coachEmail || 'coach@sample.com',
+      recipient_email: 'me@example.com',
+      subject: '',
+      message: 'Perfect. Keep it tight and action-led. Send me the draft before you hit send.'
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-background">
-      
       <main className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-4">
-              <Link 
-                to="/coach-management" 
-                className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Coach Management
-              </Link>
-              <div>
-                <h1 className="text-4xl font-bold text-foreground">
-                  {coachName} Training
-                </h1>
-                <p className="text-xl text-muted-foreground mt-2">
-                  Review communications and provide training feedback
-                </p>
-          </div>
+        <div className="max-w-7xl mx-auto space-y-6">
+          <nav className="flex items-center text-sm text-muted-foreground mb-4" aria-label="Breadcrumb">
+            <Link to="/" className="flex items-center gap-1 hover:underline">
+              <HomeIcon className="h-4 w-4" /> Home
+            </Link>
+            <span className="mx-2">/</span>
 
-          {/* Filters Section */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filters & Sorting
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>Company</Label>
-                  <Select value={selectedCompany} onValueChange={setSelectedCompany}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select company" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {companies.map((company) => (
-                        <SelectItem key={company} value={company}>
-                          <div className="flex items-center gap-2">
-                            <Building className="h-4 w-4" />
-                            {company === "all" ? "All Companies" : company}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <Link to="/coach-management" className="hover:underline">
+              Coach
+            </Link>
+            <span className="mx-2">/</span>
 
-                <div className="space-y-2">
-                  <Label>Rep/Leader</Label>
-                  <Select value={selectedRep} onValueChange={setSelectedRep}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select person" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {reps.map((rep) => (
-                        <SelectItem key={rep} value={rep}>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4" />
-                            {rep === "all" ? "All People" : rep}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Coach</Label>
-                  <Select value={selectedCoach} onValueChange={setSelectedCoach}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select coach" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {coaches.map((coach) => (
-                        <SelectItem key={coach} value={coach}>
-                          <div className="flex items-center gap-2">
-                            <Star className="h-4 w-4" />
-                            {coach === "all" ? "All Coaches" : coach}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
-              {(selectedCompany !== "all" || selectedRep !== "all" || selectedCoach !== "all") && (
-                <div className="mt-4 flex items-center gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => {
-                      setSelectedCompany("all");
-                      setSelectedRep("all");
-                      setSelectedCoach("all");
-                    }}
-                  >
-                    Clear Filters
-                  </Button>
-                  <div className="text-sm text-muted-foreground">
-                    Showing {filteredCommunications.length} communications, {filteredDrafts.length} drafts
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            <span className="text-foreground font-medium">
+              Training
+            </span>
+          </nav>
+          <header className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">{coachName} – Coach Training</h1>
+              <p className="text-muted-foreground">Simplify instructions, manage training data, and review conversations.</p>
             </div>
-          </div>
+            {/* Breadcrumb */}
 
-          {/* Coach Communication */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5 text-accent" />
-                Coach Communication
-              </CardTitle>
-              <CardDescription>
-                Send instructions, accountability tasks, or emails to your AI sales coach
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!coachEmail && (
-                <div className="space-y-2">
-                  <Label htmlFor="coachEmail">Coach Email</Label>
-                  <Input
-                    id="coachEmail"
-                    type="email"
-                    placeholder="coach@yourcompany.com"
-                    value={coachEmail}
-                    onChange={(e) => setCoachEmail(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Set the coach’s email to enable sending instructions and emails.
-                  </p>
-                </div>
-              )}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <CoachInstructionsManager coachName={coachName} coachEmail={coachEmail} />
-                <EmailComposer
-                  coachName={coachName}
-                  coachEmail={coachEmail}
-                  coachPhone={coachPhone}
-                  coachImageUrl={coachImageUrl}
-                />
-                <CoachWelcomeManager
-                  coachName={coachName}
-                  coachEmail={coachEmail}
-                  coachPhone={coachPhone}
-                  coachImageUrl={coachImageUrl}
-                  coachDescription={coachDescription}
-                />
-              </div>
-              <div className="mt-4 p-4 bg-muted/50 rounded-lg">
-                <h4 className="font-medium text-sm mb-2">How it works:</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Instructions: send tasks for accountability or analysis</li>
-                  <li>• Email: send messages as your coach to reps or prospects</li>
-                  <li>• Welcome: introduce the coach and onboard new users</li>
-                  <li>• Responses: AI coach processes and replies via email</li>
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
+          </header>
 
-          {/* Stats Overview */}
-          <div className="grid gap-4 md:grid-cols-4 mb-8">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Communications</p>
-                    <p className="text-2xl font-bold">247</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Avg Rating</p>
-                    <p className="text-2xl font-bold">4.2</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Active Reps</p>
-                    <p className="text-2xl font-bold">12</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Improvement Rate</p>
-                    <p className="text-2xl font-bold">+23%</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <Tabs defaultValue="communications" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="communications">Communications Review</TabsTrigger>
-              <TabsTrigger value="drafts" className="relative">
-                Draft Nudges
-                {draftNudges.length > 0 && (
-                  <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 text-xs">
-                    {draftNudges.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="training">Training & Feedback</TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="communications" className="space-y-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* LEFT: Instructions + Training Data */}
+            <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Your Recent Emails</CardTitle>
-                  <CardDescription>
-                    Emails exchanged with {coachName}{coachEmail ? ` (${coachEmail})` : ''}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {loadingEmails ? (
-                    <p className="text-sm text-muted-foreground">Loading…</p>
-                  ) : emailConvos.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No recent emails found.</p>
-                  ) : (
-                    emailConvos.map((e) => (
-                      <div key={e.id} className="border rounded p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="font-medium truncate mr-4">{e.subject}</div>
-                          <span className="text-xs text-muted-foreground">{new Date(e.sent_at).toLocaleString()}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">To: {e.recipient_email}</div>
-                        <div className="text-sm mt-2 line-clamp-2">{e.message}</div>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recent Communications</CardTitle>
-                  <CardDescription>
-                    Review and provide feedback on the coach's responses to reps and insights shared with leadership
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  {filteredCommunications.map((comm) => (
-                    <div key={comm.id} className="border rounded-lg p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Badge variant={comm.type === "call" ? "default" : comm.type === "report" ? "secondary" : comm.type === "alert" ? "destructive" : "outline"}>
-                            {comm.type === "call" ? "Call" : comm.type === "email" ? "Email" : comm.type === "report" ? "Report" : "Alert"}
-                          </Badge>
-                          <Badge variant={comm.recipientType === "leader" ? "secondary" : "default"}>
-                            {comm.recipientType === "leader" ? (
-                              <Shield className="h-3 w-3 mr-1" />
-                            ) : (
-                              <Target className="h-3 w-3 mr-1" />
-                            )}
-                            {comm.recipientType === "leader" ? "Leadership" : "Rep Coaching"}
-                          </Badge>
-                          <span className="font-medium">{comm.recipient}</span>
-                          <Badge variant="outline" className="text-xs">
-                            <Building className="h-3 w-3 mr-1" />
-                            {comm.company}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            {comm.coach}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">{comm.scenario}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground">{comm.timestamp}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="bg-muted/50 p-4 rounded-lg">
-                          <h4 className="font-semibold mb-2">
-                            {comm.recipientType === "leader" ? "Context/Request:" : "Rep's Message:"}
-                          </h4>
-                          <p className="text-sm">{comm.userMessage}</p>
-                        </div>
-                        
-                        <div className={`p-4 rounded-lg ${comm.recipientType === "leader" ? "bg-blue-50 dark:bg-blue-950/20" : "bg-primary/5"}`}>
-                          <h4 className="font-semibold mb-2">
-                            {comm.recipientType === "leader" ? "Leadership Insight:" : "Coach's Response:"}
-                          </h4>
-                          <p className="text-sm">{comm.coachResponse}</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between pt-4 border-t">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1">
-                            {[...Array(5)].map((_, i) => (
-                              <Star 
-                                key={i} 
-                                className={`h-4 w-4 ${i < comm.rating ? 'text-yellow-400 fill-current' : 'text-muted-foreground'}`} 
-                              />
-                            ))}
-                          </div>
-                          <span className="text-sm text-muted-foreground">{comm.feedback}</span>
-                        </div>
-                        
-                        <div className="flex gap-2">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleFeedback(comm.id, true)}
-                          >
-                            <ThumbsUp className="h-4 w-4 mr-1" />
-                            {comm.recipientType === "leader" ? "Good Insight" : "Good Response"}
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleFeedback(comm.id, false)}
-                          >
-                            <ThumbsDown className="h-4 w-4 mr-1" />
-                            Needs Improvement
-                          </Button>
-                        </div>
-                      </div>
-                      </div>
-                    ))}
-
-                  {filteredCommunications.length === 0 && (
-                    <div className="text-center py-8">
-                      <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No communications found</h3>
-                      <p className="text-muted-foreground">
-                        Try adjusting your filters to see more results.
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="drafts" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-primary" />
-                    Draft Nudges Pending Approval
-                  </CardTitle>
-                  <CardDescription>
-                    Review and approve AI-generated performance nudges before they're sent to reps and leaders
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {filteredDrafts.map((draft) => (
-                    <div key={draft.id} className="border rounded-lg p-6 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Badge variant={draft.urgency === "high" ? "destructive" : draft.urgency === "medium" ? "default" : "secondary"}>
-                            {draft.urgency.toUpperCase()} PRIORITY
-                          </Badge>
-                          <span className="font-medium">{draft.recipient}</span>
-                          <Badge variant="outline" className="text-xs">
-                            <Building className="h-3 w-3 mr-1" />
-                            {draft.company}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Star className="h-3 w-3 mr-1" />
-                            {draft.coach}
-                          </Badge>
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                            <Star className="h-3 w-3" />
-                            <span>{draft.aiConfidence}% confidence</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{draft.createdAt}</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-muted/50 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-2">Trigger Reason:</h4>
-                        <p className="text-sm">{draft.triggerReason}</p>
-                      </div>
-
-                      <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-2">Draft Message:</h4>
-                        <p className="text-sm leading-relaxed">{draft.draftMessage}</p>
-                      </div>
-
-                      <div className="bg-green-50 dark:bg-green-950/20 p-4 rounded-lg">
-                        <h4 className="font-semibold mb-2">AI Suggested Action:</h4>
-                        <p className="text-sm">{draft.suggestedAction}</p>
-                      </div>
-
-                      <div className="flex gap-3 pt-4 border-t">
-                        <Button 
-                          size="sm"
-                          onClick={() => handleDraftAction(draft.id, 'approve')}
-                          className="flex-1"
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve & Send
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          onClick={() => setSelectedDraft(draft)}
-                          className="flex-1"
-                        >
-                          <Eye className="h-4 w-4 mr-2" />
-                          Review & Edit
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="destructive"
-                          onClick={() => handleDraftAction(draft.id, 'reject')}
-                          className="flex-1"
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-
-                  {filteredDrafts.length === 0 && (
-                    <div className="text-center py-8">
-                      <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold mb-2">No pending drafts found</h3>
-                      <p className="text-muted-foreground">
-                        {(selectedCompany !== "all" || selectedRep !== "all" || selectedCoach !== "all") 
-                          ? "Try adjusting your filters to see more results." 
-                          : "All AI-generated nudges have been reviewed. New drafts will appear here when the coach identifies performance opportunities."
-                        }
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Draft Statistics */}
-              <div className="grid gap-4 md:grid-cols-3">
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-primary" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Pending Drafts</p>
-                        <p className="text-2xl font-bold">{filteredDrafts.length}</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-600" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Approval Rate</p>
-                        <p className="text-2xl font-bold">87%</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4 text-primary" />
-                      <div>
-                        <p className="text-sm text-muted-foreground">Avg Response Time</p>
-                        <p className="text-2xl font-bold">2.3h</p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="training" className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Training Prompts</CardTitle>
-                    <CardDescription>
-                      Provide specific guidance for the coach to improve responses
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="training">Training Instruction</Label>
-                      <Textarea
-                        id="training"
-                        placeholder="Example: When handling price objections, always ask about the cost of the problem before presenting our pricing..."
-                        value={trainingPrompt}
-                        onChange={(e) => setTrainingPrompt(e.target.value)}
-                        className="min-h-[120px]"
-                      />
-                    </div>
-                    <Button onClick={handleTraining} className="w-full">
-                      <Send className="h-4 w-4 mr-2" />
-                      Submit Training
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>General Feedback</CardTitle>
-                    <CardDescription>
-                      Share overall observations about the coach's performance
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="feedback">Performance Feedback</Label>
-                      <Textarea
-                        id="feedback"
-                        placeholder="The coach is doing well with rapport building but could improve on discovery questions..."
-                        value={feedbackText}
-                        onChange={(e) => setFeedbackText(e.target.value)}
-                        className="min-h-[120px]"
-                      />
-                    </div>
-                    <Button onClick={handleGeneralFeedback} className="w-full">
-                      <Send className="h-4 w-4 mr-2" />
-                      Submit Feedback
-                    </Button>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Training Actions</CardTitle>
-                  <CardDescription>
-                    Common training scenarios and improvements
-                  </CardDescription>
+                  <CardTitle>Instruct the Coach</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    <Button variant="outline" className="justify-start">
-                      <AlertCircle className="h-4 w-4 mr-2" />
-                      Improve Objection Handling
-                    </Button>
-                    <Button variant="outline" className="justify-start">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Enhance Discovery Questions
-                    </Button>
-                    <Button variant="outline" className="justify-start">
-                      <Users className="h-4 w-4 mr-2" />
-                      Better Rapport Building
-                    </Button>
-                    <Button variant="outline" className="justify-start">
-                      <TrendingUp className="h-4 w-4 mr-2" />
-                      Stronger Closing Techniques
-                    </Button>
-                    <Button variant="outline" className="justify-start">
-                      <Star className="h-4 w-4 mr-2" />
-                      Improve Follow-up Strategy
-                    </Button>
-                    <Button variant="outline" className="justify-start">
-                      <Play className="h-4 w-4 mr-2" />
-                      Demo Best Practices
-                    </Button>
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <Textarea
+                      placeholder="Type instructions or use voice. Ex: 'Prioritize discovery questions before pitching. Use concise, action-led emails.'"
+                      value={instructionText}
+                      onChange={(e) => setInstructionText(e.target.value)}
+                      className="md:flex-1"
+                    />
+                    <div className="flex items-center gap-2 md:self-end">
+                      <Button
+                        type="button"
+                        variant={listening ? "secondary" : "outline"}
+                        onClick={() => (listening ? stop() : start())}
+                      >
+                        {listening ? "Stop Voice" : "Use Voice"}
+                      </Button>
+                      <Button onClick={sendInstruction} disabled={sending || (!instructionText.trim() && !transcript.trim())}>
+                        {sending ? "Sending..." : "Send"}
+                      </Button>
+                    </div>
+                  </div>
+                  {supported ? (
+                    transcript && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        Voice transcript: <span className="text-foreground">{transcript}</span>
+                      </div>
+                    )
+                  ) : (
+                    <div className="text-xs text-muted-foreground mt-2">Voice input not supported in this browser.</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Instructions for the Coach</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <CoachInstructionsManager coachName={coachName} coachEmail={coachEmail} />
+                </CardContent>
+              </Card>
+
+              <TrainingDataManager />
+            </div>
+
+            {/* RIGHT: Conversations feed with inline comments */}
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Coach ↔ Users Conversations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="max-h-[60vh] overflow-y-auto pr-1">
+                    <ConversationThread
+                      messages={sampleMessages}
+                      coachEmail={coachEmail || 'coach@sample.com'}
+                      onSendComment={submitCommentText}
+                    />
                   </div>
                 </CardContent>
               </Card>
-            </TabsContent>
-          </Tabs>
+            </div>
+          </section>
         </div>
       </main>
+
 
       <Footer />
     </div>

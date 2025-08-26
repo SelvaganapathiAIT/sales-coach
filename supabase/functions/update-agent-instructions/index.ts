@@ -1,69 +1,41 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
-
-serve(async (req) => {
+serve(async (req)=>{
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: corsHeaders
+    });
   }
-
   try {
     const ELEVENLABS_API_KEY = Deno.env.get('ELEVENLABS_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
     if (!ELEVENLABS_API_KEY) {
       throw new Error('ELEVENLABS_API_KEY is not configured');
     }
-
-    const { 
-      coachName, 
-      agentLanguage,
-      firstMessage,
-      customInstructions,
-      llmModel,
-      temperature,
-      tools,
-      voiceId,
-      userId
-    } = await req.json();
-
+    const { coachName, agentLanguage, firstMessage, customInstructions, llmModel, temperature, tools, voiceId, userId, elevenlabsAgentId, systemPrompt } = await req.json();
     // Bobby Hartline's agent ID
-    const agentId = 'agent_4301k1p4h341eahrqp6v8tr8qqfs';
-
+    const agentId = elevenlabsAgentId;
     // Get conversation history and profile for this user if available
     let conversationContext = '';
     if (userId && SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY) {
       const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-      
       // Load user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-      
+      const { data: profile } = await supabase.from('profiles').select('*').eq('user_id', userId).single();
       // Load conversation history
-      const { data: history } = await supabase
-        .from('conversation_history')
-        .select('*')
-        .eq('user_id', userId)
-        .eq('agent_id', agentId)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .single();
-
+      const { data: history } = await supabase.from('conversation_history').select('*').eq('user_id', userId).eq('agent_id', elevenlabsAgentId).order('updated_at', {
+        ascending: false
+      }).limit(1).single();
       if (profile || history) {
         conversationContext = `
 
 EXISTING USER CONTEXT - VERY IMPORTANT:`;
-
         if (profile) {
           conversationContext += `
 
@@ -72,7 +44,6 @@ USER PROFILE:
 - Role: ${profile.role || 'Not provided'}
 - Sales Focus: ${profile.sales_description || 'Not provided'}`;
         }
-
         if (history) {
           conversationContext += `
 
@@ -93,23 +64,20 @@ NOTE: This user has profile information but no conversation history yet. You can
         }
       }
     }
-
-    console.log('Updating agent instructions for:', agentId);
+    console.log('Updating agent instructions for:', elevenlabsAgentId);
     console.log('First message being set:', firstMessage);
-
     // Build the conversation configuration
     const conversationConfig = {
-      agent_id: agentId,
+      agent_id: elevenlabsAgentId,
       conversation_config: {
         agent: {
           prompt: {
-            prompt: (customInstructions || `System Instructions:
+            prompt: (systemPrompt + '\n\n IMPORTANT RULES FOR THIS AGENT \n\n' + customInstructions || `System Instructions:
 
 You are a high-energy, emotionally intelligent AI Sales Coach with the voice, presence, and emotional resonance of a Tony Robbins-style coach. Your goal is to build trust and a powerful coaching relationship with this new salesperson. Your tone is friendly, curious, direct, motivating, and deeply present. You remember everything shared by the user and help them unlock their sales potential by discovering their goals, patterns, and beliefs.
 
 Start the session with this structure:
-
-🎙️ Session 1: Welcome + Relationship Building + Data Gathering
+Session 1: Welcome + Relationship Building + Data Gathering
 
 Step 1: Open With Warmth
 Begin with a welcoming tone:
@@ -201,7 +169,7 @@ Key belief or behavior holding them back
 
 Preferred accountability style (e.g., check-ins, motivational calls, reminders)
 
-🤖 Edge Case & Memory Handling
+Edge Case & Memory Handling
 If conversation is cut off early, say:
 
 "Looks like we got cut off. No worries—I'll remember what we talked about. When you're ready, we can pick up right where we left off."
@@ -210,72 +178,10 @@ If the user returns after a break:
 
 "Welcome back, [NAME]! Last time we were talking about [last topic discussed]. Want to continue there or start fresh today?"
 
-`) + conversationContext,
+`) + conversationContext
           },
           first_message: firstMessage || "Hello! I'm Bobby your AI sales coach. Let's get to know each other. What is your name?",
-          language: agentLanguage || "en",
-          tools: [
-            {
-              type: "function",
-              name: "update_user_profile",
-              description: "Save the user's profile information (name, company, role, sales description) after collecting it during the conversation. Call this ONCE after you have gathered: user's name, company name, role, and what they sell.",
-              parameters: {
-                type: "object",
-                properties: {
-                  userName: { 
-                    type: "string", 
-                    description: "The user's full name" 
-                  },
-                  companyName: { 
-                    type: "string", 
-                    description: "The company they work for" 
-                  },
-                  role: { 
-                    type: "string", 
-                    description: "Their job title/role" 
-                  },
-                  salesDescription: { 
-                    type: "string", 
-                    description: "What they sell or their sales focus" 
-                  }
-                },
-                required: ["userName", "companyName", "role", "salesDescription"]
-              }
-            },
-            {
-              type: "function",
-              name: "store_conversation_summary",
-              description: "Store a summary of the conversation including key insights, goals, challenges, and topics discussed. Call this at the end of meaningful conversations.",
-              parameters: {
-                type: "object",
-                properties: {
-                  conversationSummary: {
-                    type: "string",
-                    description: "A comprehensive summary of what was discussed in this conversation"
-                  },
-                  keyInsights: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Key insights discovered about the user's sales approach, mindset, or challenges"
-                  },
-                  userGoals: {
-                    type: "string", 
-                    description: "The user's stated goals or aspirations"
-                  },
-                  userChallenges: {
-                    type: "string",
-                    description: "Main challenges or obstacles the user is facing"
-                  },
-                  lastTopics: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Main topics or themes discussed in this conversation"
-                  }
-                },
-                required: ["conversationSummary"]
-              }
-            }
-          ]
+          language: agentLanguage || "en"
         },
         tts: {
           voice_id: voiceId || "CwhRBWXzGAHq8TQ4Fs17" // Default to Roger voice
@@ -286,47 +192,47 @@ If the user returns after a break:
         }
       }
     };
-
     console.log('Sending conversation config to ElevenLabs:', JSON.stringify(conversationConfig, null, 2));
-
     // Update the agent configuration using the correct ElevenLabs API endpoint
     const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
       method: 'PATCH',
       headers: {
         'xi-api-key': ELEVENLABS_API_KEY,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         conversation_config: conversationConfig.conversation_config
       })
     });
-
     if (!response.ok) {
       const error = await response.text();
       console.error('ElevenLabs API error:', error);
       throw new Error(`ElevenLabs API error: ${response.status} - ${error}`);
     }
-
     const result = await response.json();
     console.log('Agent configuration updated successfully:', result);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return new Response(JSON.stringify({
+      success: true,
       message: 'Agent instructions updated successfully',
       agentId,
       firstMessage: firstMessage
     }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
-
   } catch (error) {
     console.error('Error updating agent instructions:', error);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       error: error.message,
-      success: false 
+      success: false
     }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
   }
 });

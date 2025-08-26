@@ -1,5 +1,5 @@
 -- Create conversation sessions table
-CREATE TABLE public.conversation_sessions (
+CREATE TABLE IF NOT EXISTS  public.conversation_sessions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   coach_personality TEXT NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE public.conversation_sessions (
 );
 
 -- Create conversation messages table
-CREATE TABLE public.conversation_messages (
+CREATE TABLE IF NOT EXISTS  public.conversation_messages (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   session_id UUID NOT NULL REFERENCES public.conversation_sessions(id) ON DELETE CASCADE,
   role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
@@ -25,7 +25,7 @@ CREATE TABLE public.conversation_messages (
 );
 
 -- Create coaching notes table
-CREATE TABLE public.coaching_notes (
+CREATE TABLE IF NOT EXISTS  public.coaching_notes (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL,
   coach_personality TEXT NOT NULL,
@@ -40,7 +40,7 @@ CREATE TABLE public.coaching_notes (
 );
 
 -- Create user coaching context table
-CREATE TABLE public.user_coaching_context (
+CREATE TABLE IF NOT EXISTS  public.user_coaching_context (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL UNIQUE,
   sales_experience_level TEXT CHECK (sales_experience_level IN ('beginner', 'intermediate', 'advanced', 'expert')),
@@ -65,23 +65,31 @@ ALTER TABLE public.coaching_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_coaching_context ENABLE ROW LEVEL SECURITY;
 
 -- Create RLS policies for conversation_sessions
-CREATE POLICY "Users can view their own sessions" 
+drop policy if exists   "Users can view their own sessions" 
+ON public.conversation_sessions;
+create policy "Users can view their own sessions" 
 ON public.conversation_sessions 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own sessions" 
+drop policy if exists  "Users can create their own sessions" 
+ON public.conversation_sessions;
+create policy "Users can create their own sessions" 
 ON public.conversation_sessions 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own sessions" 
+drop policy if exists  "Users can update their own sessions"
+ON public.conversation_sessions;
+create policy  "Users can update their own sessions" 
 ON public.conversation_sessions 
 FOR UPDATE 
 USING (auth.uid() = user_id);
 
 -- Create RLS policies for conversation_messages
-CREATE POLICY "Users can view messages from their sessions" 
+drop policy if exists  "Users can view messages from their sessions" 
+ON public.conversation_sessions;
+create policy  "Users can view messages from their sessions" 
 ON public.conversation_messages 
 FOR SELECT 
 USING (EXISTS (
@@ -90,7 +98,9 @@ USING (EXISTS (
   AND user_id = auth.uid()
 ));
 
-CREATE POLICY "Users can create messages in their sessions" 
+drop policy if exists  "Users can create messages in their sessions"
+ON public.conversation_sessions;
+create policy  "Users can create messages in their sessions" 
 ON public.conversation_messages 
 FOR INSERT 
 WITH CHECK (EXISTS (
@@ -100,33 +110,46 @@ WITH CHECK (EXISTS (
 ));
 
 -- Create RLS policies for coaching_notes
-CREATE POLICY "Users can view their own coaching notes" 
+
+drop policy if exists "Users can view their own coaching notes" 
+ON public.coaching_notes;
+create policy "Users can view their own coaching notes" 
 ON public.coaching_notes 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own coaching notes" 
+drop policy if exists  "Users can create their own coaching notes" 
+ON public.coaching_notes;
+create policy "Users can create their own coaching notes" 
 ON public.coaching_notes 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own coaching notes" 
+drop policy if exists  "Users can update their own coaching notes" 
+ON public.coaching_notes;
+create policy "Users can update their own coaching notes" 
 ON public.coaching_notes 
 FOR UPDATE 
 USING (auth.uid() = user_id);
 
 -- Create RLS policies for user_coaching_context
-CREATE POLICY "Users can view their own coaching context" 
+drop policy if exists  "Users can view their own coaching context" 
+ON public.user_coaching_context;
+create policy  "Users can view their own coaching context" 
 ON public.user_coaching_context 
 FOR SELECT 
 USING (auth.uid() = user_id);
 
-CREATE POLICY "Users can create their own coaching context" 
+drop policy if exists  "Users can create their own coaching context" 
+ON public.user_coaching_context;
+create policy  "Users can create their own coaching context" 
 ON public.user_coaching_context 
 FOR INSERT 
 WITH CHECK (auth.uid() = user_id);
 
-CREATE POLICY "Users can update their own coaching context" 
+drop policy if exists  "Users can update their own coaching context" 
+ON public.user_coaching_context;
+create policy  "Users can update their own coaching context" 
 ON public.user_coaching_context 
 FOR UPDATE 
 USING (auth.uid() = user_id);
@@ -141,6 +164,38 @@ CREATE INDEX idx_coaching_notes_session_id ON public.coaching_notes(session_id);
 CREATE INDEX idx_coaching_notes_note_type ON public.coaching_notes(note_type);
 
 -- Create triggers for automatic timestamp updates
+BEGIN;
+
+-- Ensure timestamp columns exist (safe to re-run)
+ALTER TABLE public.conversation_sessions
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+ALTER TABLE public.coaching_notes
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+ALTER TABLE public.user_coaching_context
+  ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now(),
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
+
+-- Create or replace the trigger function
+CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+-- Drop any old triggers (safe to re-run)
+DROP TRIGGER IF EXISTS update_conversation_sessions_updated_at ON public.conversation_sessions;
+DROP TRIGGER IF EXISTS update_coaching_notes_updated_at ON public.coaching_notes;
+DROP TRIGGER IF EXISTS update_user_coaching_context_updated_at ON public.user_coaching_context;
+
+-- Create triggers
 CREATE TRIGGER update_conversation_sessions_updated_at
 BEFORE UPDATE ON public.conversation_sessions
 FOR EACH ROW
@@ -156,6 +211,9 @@ BEFORE UPDATE ON public.user_coaching_context
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
+COMMIT;
+
+
 -- Create function to get user coaching history for AI context
 CREATE OR REPLACE FUNCTION public.get_user_coaching_context(p_user_id UUID)
 RETURNS JSONB
@@ -170,44 +228,48 @@ AS $$
       WHERE uc.user_id = p_user_id
     ),
     'recent_sessions', (
-      SELECT jsonb_agg(
-        jsonb_build_object(
+      SELECT jsonb_agg(session_data ORDER BY session_data->>'started_at' DESC)
+      FROM (
+        SELECT jsonb_build_object(
           'session_id', cs.id,
           'coach_personality', cs.coach_personality,
           'session_title', cs.session_title,
           'started_at', cs.started_at,
           'session_summary', cs.session_summary,
           'key_outcomes', cs.key_outcomes
-        )
-      )
-      FROM public.conversation_sessions cs
-      WHERE cs.user_id = p_user_id
-      ORDER BY cs.started_at DESC
-      LIMIT 5
+        ) AS session_data
+        FROM public.conversation_sessions cs
+        WHERE cs.user_id = p_user_id
+        ORDER BY cs.started_at DESC
+        LIMIT 5
+      ) sub
     ),
     'active_notes', (
-      SELECT jsonb_agg(
-        jsonb_build_object(
+      SELECT jsonb_agg(note_data ORDER BY note_data->>'created_at' DESC)
+      FROM (
+        SELECT jsonb_build_object(
           'note_type', cn.note_type,
           'title', cn.title,
           'content', cn.content,
           'priority', cn.priority,
           'coach_personality', cn.coach_personality,
           'created_at', cn.created_at
-        )
-      )
-      FROM public.coaching_notes cn
-      WHERE cn.user_id = p_user_id 
-      AND cn.is_active = true
-      ORDER BY cn.created_at DESC
+        ) AS note_data
+        FROM public.coaching_notes cn
+        WHERE cn.user_id = p_user_id 
+        AND cn.is_active = true
+        ORDER BY cn.created_at DESC
+      ) sub
     ),
     'conversation_insights', (
       SELECT jsonb_build_object(
         'total_messages', COUNT(*),
-        'recent_topics', array_agg(DISTINCT cs.session_title) FILTER (WHERE cs.session_title IS NOT NULL)
+        'recent_topics', array_agg(DISTINCT cs.session_title) 
+          FILTER (WHERE cs.session_title IS NOT NULL)
       )
       FROM public.conversation_sessions cs
-      LEFT JOIN public.conversation_messages cm ON cs.id = cm.session_id
+      LEFT JOIN public.conversation_messages cm 
+        ON cs.id = cm.session_id
       WHERE cs.user_id = p_user_id
       AND cs.started_at > NOW() - INTERVAL '30 days'
     )

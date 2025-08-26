@@ -1,4 +1,4 @@
-project_id = "qdvusrwnfzqvemwkuwzo"
+project_id = "xkmakgrtisltezyqxklo"
 
 [functions.elevenlabs-agent]
 verify_jwt = false
@@ -41,3 +41,7 @@ verify_jwt = false
 
 [functions.callproof-activity]
 verify_jwt = false
+[functions.create-coach]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/create-coach/index.ts"

@@ -30,7 +30,7 @@ const Index = () => {
   // Show loading state while checking auth
   if (isAuthenticated === null) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen w-full bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary mx-auto"></div>
           <p className="mt-4 text-muted-foreground">Loading...</p>
@@ -46,8 +46,7 @@ const Index = () => {
 
   // Show landing page for non-authenticated users
   return (
-    <div className="min-h-screen bg-background">
-      
+    <div className="min-h-screen w-full bg-background">
       <Hero />
       <CoachDirectory />
       <HowItWorks />

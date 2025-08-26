@@ -222,6 +222,86 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_messages: {
+        Row: {
+          content: string
+          id: string
+          message_type: string | null
+          metadata: Json | null
+          role: string
+          session_id: string
+          timestamp: string
+        }
+        Insert: {
+          content: string
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          role: string
+          session_id: string
+          timestamp?: string
+        }
+        Update: {
+          content?: string
+          id?: string
+          message_type?: string | null
+          metadata?: Json | null
+          role?: string
+          session_id?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_messages_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "conversation_sessions"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      conversation_sessions: {
+        Row: {
+          coach_personality: string
+          created_at: string
+          duration_minutes: number | null
+          ended_at: string | null
+          id: string
+          key_outcomes: string[] | null
+          session_summary: string | null
+          session_title: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          coach_personality: string
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          key_outcomes?: string[] | null
+          session_summary?: string | null
+          session_title?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          coach_personality?: string
+          created_at?: string
+          duration_minutes?: number | null
+          ended_at?: string | null
+          id?: string
+          key_outcomes?: string[] | null
+          session_summary?: string | null
+          session_title?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       crm_connections: {
         Row: {
           additional_config: Json | null
@@ -405,8 +485,24 @@ export type Database = {
         Args: { _coach_id: string; _user_id: string }
         Returns: boolean
       }
+      can_view_accountability_report: {
+        Args: {
+          _target_email: string
+          _instruction_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
       can_view_coach: {
         Args: { _coach_id: string; _user_id: string }
+        Returns: boolean
+      }
+      can_view_coach_instruction: {
+        Args: {
+          _coach_email: string
+          _target_user_email: string
+          _user_id: string
+        }
         Returns: boolean
       }
       has_role: {
@@ -426,7 +522,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "moderator" | "user" | "coach_admin"
+      app_role: "admin" | "moderator" | "user" | "coach_admin"| "ceo" |"sales_rep"
     }
     CompositeTypes: {
       [_ in never]: never

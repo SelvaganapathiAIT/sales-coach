@@ -1,5 +1,5 @@
 -- Create coaches table first
-create table if not exists public.coaches (
+CREATE TABLE IF NOT EXISTS public.coaches (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   email text unique not null,
@@ -13,7 +13,7 @@ create table if not exists public.coaches (
 alter table public.coaches enable row level security;
 
 -- Create coach_users linking table BEFORE policies that reference it
-create table if not exists public.coach_users (
+CREATE TABLE IF NOT EXISTS public.coach_users (
   id uuid primary key default gen_random_uuid(),
   coach_id uuid not null references public.coaches(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -35,6 +35,8 @@ create trigger update_coaches_updated_at
   for each row execute function public.update_updated_at_column();
 
 -- RLS: owners can manage assignments, users can view their own
+drop policy if exists "Owners can manage coach assignments" on public.coach_users;
+drop policy if exists "Users can view their own coach assignments" on public.coach_users;
 create policy "Owners can manage coach assignments"
   on public.coach_users
   for all
@@ -63,6 +65,8 @@ create policy "Users can view their own coach assignments"
   ));
 
 -- RLS policies for coaches (after coach_users exists)
+drop policy if exists "Owners can manage their coaches" on public.coaches;
+drop policy if exists "Assigned users can view coaches" on public.coaches;
 create policy "Owners can manage their coaches"
   on public.coaches
   for all
@@ -80,6 +84,9 @@ create policy "Assigned users can view coaches"
   );
 
 -- Optional helpful view permissions: admins can view all
+drop policy if exists "Admins can view all coaches" on public.coaches;
+drop policy if exists "Admins can view all coach assignments" on public.coach_users;
+
 create policy "Admins can view all coaches"
   on public.coaches
   for select

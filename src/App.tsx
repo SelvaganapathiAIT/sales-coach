@@ -23,7 +23,6 @@ import ResetPassword from "./pages/ResetPassword";
 const queryClient = new QueryClient();
 
 const App = () => {
-  console.log('App.tsx: App component rendering');
   return (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -31,8 +30,11 @@ const App = () => {
       <Sonner />
       <HelmetProvider>
         <BrowserRouter>
-          <Header />
-          <Routes>
+        <div className="w-full h-screen" style={{ height: '100vh' }}>
+          <div className="w-full h-[8vh]" style={{ height: '8vh' }}>
+            <Header />
+            <main className="w-full h-[9vh]" style={{ height: '90vh' }}>
+              <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/coach-settings" element={<CoachSettings />} />
@@ -46,9 +48,12 @@ const App = () => {
             <Route path="/admin" element={<Admin />} />
             <Route path="/sales-desk" element={<SalesDesk />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+          </div>
+          </div>
         </BrowserRouter>
       </HelmetProvider>
     </TooltipProvider>

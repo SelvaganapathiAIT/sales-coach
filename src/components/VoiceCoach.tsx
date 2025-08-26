@@ -225,7 +225,7 @@ const VoiceCoach = ({
           </p>
           <p>Your coach can open scripts, track progress, and provide tips</p>
         </div>
-        
+            
         <AuthModal
           isOpen={showAuthModal}
           onClose={() => setShowAuthModal(false)}

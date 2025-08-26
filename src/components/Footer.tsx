@@ -4,11 +4,11 @@ import { Mail, Phone, Linkedin, Twitter } from "lucide-react";
 
 const Footer = () => {
   return (
-    <footer className="bg-primary text-primary-foreground">
-      <div className="container mx-auto px-4 py-16">
-        <div className="grid lg:grid-cols-4 gap-8">
+    <footer className="bg-primary text-primary-foreground w-full">
+      <div className="w-full px-4 py-16 mx-auto max-w-none 2xl:px-8 3xl:px-12">
+        <div className="grid lg:grid-cols-4 wide:grid-cols-4 ultra:grid-cols-6 gap-8 wide:gap-12 ultra:gap-16">
           {/* Brand */}
-          <div className="space-y-4">
+          <div className="space-y-4 ultra:col-span-2">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-accent rounded-lg"></div>
               <h3 className="text-xl font-bold">SalesCoaches.ai</h3>

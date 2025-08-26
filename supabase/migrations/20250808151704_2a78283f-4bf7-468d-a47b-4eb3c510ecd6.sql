@@ -4,7 +4,7 @@
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'app_role') THEN
-    CREATE TYPE public.app_role AS ENUM ('admin', 'moderator', 'user');
+    CREATE TYPE public.app_role AS ENUM ("admin","moderator","user","coach_admin","ceo","sales_rep");
   END IF;
 END$$;
 
@@ -37,21 +37,21 @@ $$;
 
 -- 4) RLS policies for user_roles
 DROP POLICY IF EXISTS "Users can view their own roles" ON public.user_roles;
-CREATE POLICY "Users can view their own roles"
+create policy   "Users can view their own roles"
 ON public.user_roles
 FOR SELECT
 TO authenticated
 USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Admins can view all roles" ON public.user_roles;
-CREATE POLICY "Admins can view all roles"
+create policy   "Admins can view all roles"
 ON public.user_roles
 FOR SELECT
 TO authenticated
 USING (public.has_role(auth.uid(), 'admin'));
 
 DROP POLICY IF EXISTS "Admins can manage roles" ON public.user_roles;
-CREATE POLICY "Admins can manage roles"
+create policy   "Admins can manage roles"
 ON public.user_roles
 FOR ALL
 TO authenticated
@@ -69,7 +69,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Admins can view all profiles'
   ) THEN
-    CREATE POLICY "Admins can view all profiles"
+    create policy   "Admins can view all profiles"
     ON public.profiles
     FOR SELECT
     TO authenticated
@@ -83,7 +83,7 @@ BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies WHERE schemaname = 'public' AND tablename = 'profiles' AND policyname = 'Admins can update all profiles'
   ) THEN
-    CREATE POLICY "Admins can update all profiles"
+    create policy   "Admins can update all profiles"
     ON public.profiles
     FOR UPDATE
     TO authenticated

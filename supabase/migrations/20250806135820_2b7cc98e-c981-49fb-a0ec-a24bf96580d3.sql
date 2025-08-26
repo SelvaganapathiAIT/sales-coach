@@ -1,3 +1,13 @@
+CREATE TABLE IF NOT EXISTS  public.profiles (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
+  company_name TEXT,
+  role TEXT CHECK (role IN ('salesperson', 'sales_management', 'ceo', 'recruiter')),
+  sales_description TEXT,
+  profile_photo_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+);
 -- Add CallProof configuration fields to profiles table
 ALTER TABLE public.profiles 
 ADD COLUMN callproof_api_key text,

@@ -1,5 +1,5 @@
 -- Create coach instructions table for email-based task management
-CREATE TABLE public.coach_instructions (
+CREATE TABLE IF NOT EXISTS  public.coach_instructions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   coach_email TEXT NOT NULL,
   from_email TEXT NOT NULL,
@@ -15,7 +15,7 @@ CREATE TABLE public.coach_instructions (
 );
 
 -- Create accountability reports table
-CREATE TABLE public.accountability_reports (
+CREATE TABLE IF NOT EXISTS  public.accountability_reports (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   instruction_id UUID REFERENCES public.coach_instructions(id),
   target_user_email TEXT NOT NULL,
@@ -35,13 +35,16 @@ ALTER TABLE public.coach_instructions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.accountability_reports ENABLE ROW LEVEL SECURITY;
 
 -- RLS policies for coach instructions (accessible by system)
-CREATE POLICY "Coach instructions are accessible by system" 
+drop policy if exists "Coach instructions are accessible by system" ON public.coach_instructions;
+
+create policy "Coach instructions are accessible by system" 
 ON public.coach_instructions 
 FOR ALL 
 USING (true);
 
 -- RLS policies for accountability reports (accessible by system)  
-CREATE POLICY "Accountability reports are accessible by system"
+drop policy if exists "Accountability reports are accessible by system" ON public.accountability_reports;
+create policy "Accountability reports are accessible by system"
 ON public.accountability_reports
 FOR ALL
 USING (true);

@@ -13,7 +13,7 @@ interface AuthModalProps {
   defaultMode?: 'signin' | 'signup';
 }
 
-const AuthModal = ({ isOpen, onClose, onSuccess, defaultMode = 'signin' }: AuthModalProps) => {
+const AuthModal = ({ isOpen, onClose, onSuccess, defaultMode = 'signin', handleClick }: AuthModalProps) => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(defaultMode === 'signup');

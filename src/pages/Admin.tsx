@@ -42,6 +42,7 @@ const [loading, setLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState({ first_name: '', last_name: '', email: '', coach_id: '' });
   const [coachesList, setCoachesList] = useState<{ id: string; name: string; email: string }[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Admin Panel – SalesCoaches.ai";
@@ -52,6 +53,7 @@ const [loading, setLoading] = useState(true);
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       if (session?.user) {
         checkAdmin(session.user.id);
+        setUserId(session.user.id);
       } else {
         setIsAdmin(false);
         setLoading(false);
@@ -79,6 +81,10 @@ const [loading, setLoading] = useState(true);
       setIsAdmin(admin);
       if (admin) {
         await Promise.all([fetchAllUsers(), fetchDefaultCoach(), fetchCoaches()]);
+      } else {
+        // Non-admin users should not have access
+        toast({ title: "Access denied", description: "You do not have permission to access this page.", variant: "destructive" });
+        navigate("/");
       }
     } catch (err) {
       console.error("Admin check failed", err);
@@ -143,7 +149,15 @@ const fetchUsersFromTables = async () => {
       console.error('Failed to load coaches', error);
       return;
     }
-    setCoachesList(data || []);
+    if (!data) {
+      console.warn('No coaches found');
+      setCoachesList([]);
+      return;
+    } else {
+      const title = "Customized Coaches";
+      // add title for data
+      setCoachesList(data.map(coach => ({ ...coach, title })));
+    }
   };
   const makeAdmin = async (user: AdminUser) => {
     if (!user.user_id) {
@@ -339,7 +353,7 @@ const fetchUsersFromTables = async () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {[...salesLegends, ...industryCoaches].map((c) => (
+              {[...salesLegends, ...industryCoaches, ...coachesList].map((c) => (
                 <TableRow key={c.name}>
                   <TableCell>{c.name}{defaultCoachEmail === c.email ? ' (Default)' : ''}</TableCell>
                   <TableCell>{c.email}</TableCell>
@@ -348,9 +362,27 @@ const fetchUsersFromTables = async () => {
                     <Button size="sm" variant="outline" onClick={() => navigate(`/company-coach?name=${encodeURIComponent(c.name)}&email=${encodeURIComponent(c.email)}&title=${encodeURIComponent(c.title)}`)}>Edit</Button>
                     <Button size="sm" variant="outline" onClick={async () => {
                       try {
-                        const { error } = await (supabase.from as any)('app_settings')
-                          .upsert({ key: 'default_home_coach', value: { email: c.email, name: c.name, title: c.title }, updated_at: new Date().toISOString() });
-                        if (error) throw error;
+                        const { error: upsertError } = await (supabase.from as any)('app_settings')
+                                                          .upsert({
+                                                            key: 'default_home_coach',
+                                                            value: {
+                                                              email: c.email,
+                                                              name: c.name,
+                                                              title: c.title
+                                                            },
+                                                            updated_at: new Date().toISOString()
+                                                          });
+                        if (upsertError) throw upsertError;
+                        // Update profile only if coach has an ID
+                        if (c.id) {
+                          const { error: profileError } = await supabase
+                            .from('profiles')
+                            .update({ default_coach_id: c.id })
+                            .eq('user_id', userId);
+
+                          if (profileError) throw profileError;
+                        }
+
                         setDefaultCoachEmail(c.email);
                         toast({ title: 'Default coach set', description: c.email });
                       } catch (err: any) {

@@ -1,131 +1,131 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.53.0';
-
+// Admin-only function: returns all auth users merged with profiles and roles
+// Includes is_active flag from profiles and is_admin from user_roles
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
-
-serve(async (req) => {
-  // Handle CORS preflight requests
+export const handler = async (req)=>{
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, {
+      headers: corsHeaders
+    });
   }
-
   try {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-    const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Missing Supabase configuration');
-    }
-
-    const { 
-      userId,
-      userName,
-      firstName,
-      lastName,
-      email,
-      companyName, 
-      role,
-      salesDescription,
-      profilePhotoUrl
-    } = await req.json();
-
-    console.log('Updating profile for user:', userId, {
-      userName,
-      email,
-      companyName,
-      role,
-      salesDescription
-    });
-
-    if (!userId) {
-      throw new Error('User ID is required');
-    }
-
-    // Map role to allowed values
-    const roleMapping = {
-      'sales manager': 'sales_management',
-      'sales representative': 'salesperson',
-      'sales rep': 'salesperson',
-      'account executive': 'salesperson',
-      'business development': 'salesperson',
-      'sales director': 'sales_management',
-      'vp sales': 'sales_management',
-      'chief executive officer': 'ceo',
-      'ceo': 'ceo',
-      'founder': 'ceo',
-      'recruiter': 'recruiter',
-      'hr': 'recruiter'
-    };
-
-    const normalizedRole = role ? roleMapping[role.toLowerCase()] || 'salesperson' : 'salesperson';
-
-    // Initialize Supabase client with service role
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-
-    // Update or insert user profile
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert({
-        user_id: userId,
-        first_name: firstName || null,
-        last_name: lastName || null,
-        email: email || null,
-        company_name: companyName,
-        role: normalizedRole,
-        sales_description: salesDescription,
-        profile_photo_url: profilePhotoUrl || null,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id'
-      })
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Database error:', error);
-      throw new Error(`Failed to update profile: ${error.message}`);
-    }
-
-    console.log('Profile updated successfully:', data);
-
-    // Also update conversation history with this information
-    const { error: historyError } = await supabase
-      .from('conversation_history')
-      .upsert({
-        user_id: userId,
-        agent_id: 'agent_4301k1p4h341eahrqp6v8tr8qqfs',
-        user_name: userName,
-        user_company: companyName,
-        updated_at: new Date().toISOString()
-      }, {
-        onConflict: 'user_id,agent_id'
+    const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
+      return new Response(JSON.stringify({
+        error: 'Missing Supabase env'
+      }), {
+        status: 500,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
       });
-
-    if (historyError) {
-      console.warn('Could not update conversation history:', historyError);
-      // Don't fail the whole request for this
     }
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: `Profile updated successfully for ${userName || 'user'}`,
-      data: data
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const authHeader = req.headers.get('Authorization') || '';
+    const accessToken = authHeader.replace('Bearer ', '');
+    if (!accessToken) {
+      return new Response(JSON.stringify({
+        error: 'Unauthorized'
+      }), {
+        status: 401,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    const supabaseUser = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
     });
-
-  } catch (error) {
-    console.error('Error updating user profile:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
+    const supabaseAdmin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+    // Verify requester and role
+    const { data: userData, error: userErr } = await supabaseUser.auth.getUser(accessToken);
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({
+        error: 'Invalid user'
+      }), {
+        status: 401,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    const requesterId = userData.user.id;
+    const { data: isAdmin, error: roleErr } = await supabaseUser.rpc('has_role', {
+      _user_id: requesterId,
+      _role: 'admin'
+    });
+    if (roleErr || !isAdmin) {
+      return new Response(JSON.stringify({
+        error: 'Forbidden'
+      }), {
+        status: 403,
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'application/json'
+        }
+      });
+    }
+    // Pagination (optional)
+    const { limit = 1000, page = 1 } = await req.json().catch(()=>({}));
+    const { data: usersList, error: listErr } = await supabaseAdmin.auth.admin.listUsers({
+      perPage: Math.min(limit, 1000),
+      page
+    });
+    if (listErr) throw listErr;
+    const users = usersList?.users || [];
+    const ids = users.map((u)=>u.id);
+    const [{ data: profiles, error: pErr }, { data: roles, error: rErr }] = await Promise.all([
+      supabaseAdmin.from('profiles').select('user_id, first_name, last_name, email, role, is_active').in('user_id', ids),
+      supabaseAdmin.from('user_roles').select('user_id, role').in('user_id', ids)
+    ]);
+    if (pErr) throw pErr;
+    if (rErr) throw rErr;
+    const profileByUser = new Map((profiles || []).map((p)=>[
+        p.user_id,
+        p
+      ]));
+    const adminSet = new Set((roles || []).filter((r)=>r.role === 'admin').map((r)=>r.user_id));
+    const merged = users.map((u)=>{
+      const p = profileByUser.get(u.id);
+      return {
+        user_id: u.id,
+        email: u.email,
+        first_name: p?.first_name ?? null,
+        last_name: p?.last_name ?? null,
+        profile_role: p?.role ?? null,
+        is_active: p?.is_active ?? true,
+        is_admin: adminSet.has(u.id),
+        created_at: u.created_at
+      };
+    }).sort((a, b)=>a.created_at && b.created_at ? a.created_at < b.created_at ? 1 : -1 : 0);
+    return new Response(JSON.stringify(merged), {
+      status: 200,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    });
+  } catch (e) {
+    console.error('admin-list-users error', e);
+    return new Response(JSON.stringify({
+      error: String(e)
     }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     });
   }
-});
+};
+Deno.serve(handler);

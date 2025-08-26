@@ -18,6 +18,7 @@ interface ProfileData {
   role: string;
   salesDescription: string;
   profilePhotoUrl: string;
+  default_coach_id?: string; // Optional for now, can be added later
 }
 
 interface ProfileEditorProps {
@@ -33,7 +34,8 @@ const ProfileEditor = ({ onProfileSaved }: ProfileEditorProps) => {
     companyName: "",
     role: "",
     salesDescription: "",
-    profilePhotoUrl: ""
+    profilePhotoUrl: "",
+    default_coach_id: ""
   });
   const [isUploading, setIsUploading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -68,7 +70,8 @@ const ProfileEditor = ({ onProfileSaved }: ProfileEditorProps) => {
           companyName: profileData.company_name || "",
           role: profileData.role || "",
           salesDescription: profileData.sales_description || "",
-          profilePhotoUrl: profileData.profile_photo_url || ""
+          profilePhotoUrl: profileData.profile_photo_url || "",
+          default_coach_id: profileData.default_coach_id || ""
         });
       }
     } catch (error) {
@@ -149,7 +152,8 @@ const ProfileEditor = ({ onProfileSaved }: ProfileEditorProps) => {
           companyName: profile.companyName,
           role: profile.role,
           salesDescription: profile.salesDescription,
-          profilePhotoUrl: profile.profilePhotoUrl
+          profilePhotoUrl: profile.profilePhotoUrl,
+          coachId: profile.default_coach_id
         }
       });
 
@@ -175,14 +179,14 @@ const ProfileEditor = ({ onProfileSaved }: ProfileEditorProps) => {
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="h-full flex flex-col">
+      <CardHeader className="flex-shrink-0">
         <CardTitle className="flex items-center gap-2">
           <Camera className="w-5 h-5" />
           Edit Your Profile
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 flex-1 overflow-y-auto">
         {/* Profile Photo Section */}
         <div className="flex flex-col items-center space-y-4">
           <Avatar className="w-24 h-24">
@@ -244,9 +248,6 @@ const ProfileEditor = ({ onProfileSaved }: ProfileEditorProps) => {
             onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
             placeholder="Enter your email address (for CRM integration)"
           />
-          <p className="text-sm text-muted-foreground">
-            This email will be used for CRM integrations. You can use a different email than your login email.
-          </p>
         </div>
 
         {/* Company Name */}

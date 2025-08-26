@@ -14,8 +14,8 @@ const Pipeline = () => {
   };
 
   return (
-    <section className="py-16 px-4 bg-muted/30">
-      <div className="container mx-auto max-w-6xl">
+    <section className="py-16 px-4 bg-muted/30 w-full">
+      <div className="w-full px-4 mx-auto max-w-none 2xl:px-8 3xl:px-12">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold mb-4">Your Sales Pipeline</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

@@ -1,14 +1,13 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Star, Users, Trophy, Building, Mic } from "lucide-react";
+import { ArrowRight, Star, Users, Trophy, Building } from "lucide-react";
 import heroImage from "@/assets/hero-image.jpg";
 import TryCoachModal from "./TryCoachModal";
-import { Link } from "react-router-dom";
 
 const Hero = () => {
   return (
-    <section className="relative bg-gradient-to-br from-background via-muted/30 to-background py-20 overflow-hidden">
-      <div className="container mx-auto px-4">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
+    <section className="relative bg-gradient-to-br from-background via-muted/30 to-background py-20 overflow-hidden w-full">
+      <div className="w-full px-4 mx-auto max-w-none 2xl:px-8 3xl:px-12">
+        <div className="grid lg:grid-cols-2 gap-12 items-center wide:gap-16 ultra:gap-20">
           <div className="space-y-8">
             <div className="space-y-4">
               <div className="inline-flex items-center px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
@@ -18,33 +17,34 @@ const Hero = () => {
                 </span>
               </div>
               
-              <h1 className="text-4xl lg:text-6xl font-bold text-foreground leading-tight">
+              <h1 className="text-4xl lg:text-6xl wide:text-7xl ultra:text-8xl font-bold text-foreground leading-tight">
                 Turn Sales Legends Into Your Personal{" "}
                 <span className="bg-gradient-to-r from-accent to-secondary bg-clip-text text-transparent">
                   AI Coach
                 </span>
               </h1>
               
-              <p className="text-xl text-muted-foreground leading-relaxed">
+              <p className="text-xl wide:text-2xl ultra:text-3xl text-muted-foreground leading-relaxed">
                 Get on-demand coaching from top sales experts, industry-specific AI sales managers, or create custom AI coaches trained on your company's best practices. 
                 Available 24/7 via email, text, or phone calls.
               </p>
             </div>
 
             <div className="flex flex-col sm:flex-row gap-4 relative z-20">
-              <TryCoachModal>
+              <TryCoachModal redirectTo="/onboarding">
                 <Button variant="premium" size="lg" className="group">
                   Try a Coach Now
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </TryCoachModal>
-              <Link to="/company-coach">
+
+              <TryCoachModal redirectTo="/company-coach">
                 <Button variant="secondary" size="lg" className="group w-full sm:w-auto">
                   <Building className="w-5 h-5 mr-2" />
                   Build Company Coach
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </Button>
-              </Link>
+              </TryCoachModal>
             </div>
 
             <div className="flex items-center space-x-8 pt-4">

@@ -14,7 +14,8 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import CoachChatDock from "@/components/CoachChatDock";
 import CallProofEvents from "@/components/CallProofEvents";
 
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, HomeIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface MetricState {
   callsToday: number | null;
@@ -258,6 +259,15 @@ const SalesDesk: React.FC = () => {
       </Helmet>
 
       <main className="container mx-auto px-4 py-8">
+        <nav className="flex items-center text-sm text-muted-foreground mb-4" aria-label="Breadcrumb">
+              <Link to="/" className="flex items-center gap-1 hover:underline">
+                <HomeIcon className="h-4 w-4" /> Home
+              </Link>
+              <span className="mx-2">/</span>
+              <span className="text-foreground font-medium">
+                Sales Desk
+              </span>
+            </nav>
         <header className="mb-6">
           <h1 className="text-3xl font-bold tracking-tight">Sales Desk</h1>
           <p className="text-muted-foreground mt-1">CallProof CRM overview and daily workflow</p>
