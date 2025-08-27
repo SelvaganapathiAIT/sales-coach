@@ -95,7 +95,7 @@ const Header = () => {
                   {(isCeo || isAdmin) && (
                     <>
                       <Link to="/sales-desk">
-                        <Button variant="secondary" size="sm">Sales Desk</Button>
+                        <Button variant="outline" size="sm">Sales Desk</Button>
                       </Link>
                       <Link to="/coach-management">
                         <Button variant="outline" size="sm">Coach Management</Button>

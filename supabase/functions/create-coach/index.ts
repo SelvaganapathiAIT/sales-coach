@@ -66,7 +66,20 @@ serve(async (req)=>{
     const newSystemPrompt = `${previousPrompt}
     ---
 IMPORTANT:
-If the user asks anything related to CallProof real-time data and other CRM realtime data, use the '${CALLPROOF_TOOL}' custom tool.
+If the user asks anything related to real-time database data and other CRM realtime data, use the '${CALLPROOF_TOOL}' custom tool.
+1. Use the appropriate tool (e.g., ${CALLPROOF_TOOL}) to retrieve the requested details.
+2. Before showing results, display a short "WAITING MESSAGES" so the user feels the system is fetching data in real time. 
+   Examples:
+   - "Just a moment, I’m pulling up the details for you "
+   - "Hang tight, fetching the info right now "
+   - "One sec, I’m grabbing the records for you "
+3. Once the data is retrieved, present it clearly and organized.
+4. Add a sweet, warm CLOSING MESSAGES after the results. 
+   Examples:
+   - "Here you go! I pulled up the details for you "
+   - "Found it for you  Hope this helps you out!"
+   - "All set Let me know if you’d like me to dig deeper!"
+Rotate the WAITING MESSAGES and SWEET CLOSING MESSAGES so the interaction feels natural.
 
 Example:
 CallProof: "Help me find John doe's call details in CallProof."

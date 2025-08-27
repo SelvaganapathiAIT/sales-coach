@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
-import { ArrowLeft, Send, Linkedin, Mic, MicOff, Database, Volume2, Square, Phone, Mail, FileText, Users, TrendingUp, DollarSign, Calendar, Settings, Copy, Check, PhoneCallIcon, Home, ChevronRight, History } from "lucide-react";
+import { ArrowLeft, Send, Linkedin, Mic, MicOff, Database, Volume2, Square, Phone, Mail, FileText, Users, TrendingUp, DollarSign, Calendar, Settings, Copy, Check, PhoneCallIcon, Home, ChevronRight, History, MessageCircleDashedIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 import ProfileEditor from "@/components/ProfileEditor";
 import VoiceCoach from "@/components/VoiceCoach";
@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { CRMConnectModal } from "@/components/CRMConnectModal";
 import { sessionManager } from "@/utils/sessionManager";
 import { get } from "http";
+import { toast } from "sonner";
 
 interface Message {
   id: string;
@@ -85,6 +86,9 @@ const MessageContent = ({ content = "", type, messageId, typewriterState }: {
     safeContent.includes('📈') ||
     safeContent.includes('💡') ||
     safeContent.includes('**') ||
+    safeContent.includes('#') ||
+    safeContent.includes('>') ||
+    safeContent.includes('```') ||
     safeContent.includes('*');
 
 
@@ -328,18 +332,27 @@ const MessageContent = ({ content = "", type, messageId, typewriterState }: {
         {hasMarkdown ? (
           <>
             {renderFormattedContent(safeContent)}
-            {typewriterState?.isTyping && (
-              <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse"></span>
-            )}
+            <div className="absolute right-0 bottom-0 flex gap-1 group-hover:opacity-100 transition-opacity" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={copyToClipboard}
+                className="h-6 w-6"
+              >
+                {copied ? (
+                  <Check className="h-3 w-3 text-green-600" />
+                ) : (
+                  <Copy className="h-3 w-3" />
+                )}
+              </Button>
+            </div>
           </>
         ) : (
           <p className="text-sm leading-relaxed whitespace-pre-wrap">
             {safeContent}
-            {typewriterState?.isTyping && (
-              <span className="inline-block w-2 h-4 bg-primary ml-1 animate-pulse"></span>
-            )}
           </p>
         )}
+          
       </div>
 
       {isMultipleContactSelection && contactOptions.length > 0 && (
@@ -365,21 +378,6 @@ const MessageContent = ({ content = "", type, messageId, typewriterState }: {
             ))}
           </div>
         </div>
-      )}
-
-      {type === 'crm_data' && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={copyToClipboard}
-          className="absolute top-0 right-0 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          {copied ? (
-            <Check className="h-3 w-3 text-green-600" />
-          ) : (
-            <Copy className="h-3 w-3" />
-          )}
-        </Button>
       )}
     </div>
   );
@@ -430,6 +428,7 @@ const Onboarding = () => {
   const [isVoiceMode, setIsVoiceMode] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [isCoachSpeaking, setIsCoachSpeaking] = useState(false);
+
   const [showPipeline, setShowPipeline] = useState(false);
   const [showProfileEditor, setShowProfileEditor] = useState(false);
   const [realtimeChat, setRealtimeChat] = useState<RealtimeChat | null>(null);
@@ -511,7 +510,6 @@ const Onboarding = () => {
   };
   // Typewriter effect function
   const startTypewriterEffect = useCallback((messageId: string, fullText: string) => {
-    console.log('Starting typewriter effect for message:', messageId, fullText);
     setTypewriterMessages(prev => ({
       ...prev,
       [messageId]: {
@@ -522,7 +520,6 @@ const Onboarding = () => {
     }));
 
     let currentIndex = 0;
-    const typeSpeed = 15;
 
     const typeNextCharacter = () => {
       if (currentIndex < fullText.length) {
@@ -530,7 +527,7 @@ const Onboarding = () => {
           ...prev,
           [messageId]: {
             ...prev[messageId],
-            displayText: fullText.slice(0, currentIndex + 1)
+            displayText: fullText.slice(0, currentIndex + 10)
           }
         }));
         currentIndex++;
@@ -539,7 +536,7 @@ const Onboarding = () => {
           scrollToChatArea();
         }
 
-        setTimeout(typeNextCharacter, typeSpeed);
+        setTimeout(typeNextCharacter, 1);
       } else {
         setTypewriterMessages(prev => ({
           ...prev,
@@ -796,15 +793,21 @@ const Onboarding = () => {
       });
 
       const directData = await directResponse.json();
+      let content: string = directData.response || "No response received.";
 
       if (directData.success) {
+        let smsId = generateMessageId();
+        setIsLoadingResponse(false);
+
+        startTypewriterEffect(smsId, content);
         const assistantMessage: Message = {
-          id: generateMessageId(),
+          id: smsId,
           role: 'assistant',
-          content: directData.response || "No response received.",
+          content: content,
           timestamp: new Date(),
-          type: 'crm_data',
+          type: 'general',
         };
+        setMessages(prev => [...prev, assistantMessage]);
 
         // Save messages to session
         if (currentSessionId) {
@@ -813,13 +816,12 @@ const Onboarding = () => {
         }
 
         // Start typewriter effect for the response
-        startTypewriterEffect(assistantMessage.id, assistantMessage.content);
+        try { localStorage.setItem('lastAgentResponse', directData.response || ''); } catch { }
       } else {
         throw new Error(directData.error || 'Direct call failed');
       }
     } catch (error) {
       // Direct call error
-
       const errorMessage: Message = {
         id: generateMessageId(),
         role: 'assistant',
@@ -836,9 +838,10 @@ const Onboarding = () => {
       }
 
       // Start typewriter effect for the response
+      setIsLoadingResponse(false);
+
       startTypewriterEffect(errorMessage.id, errorMessage.content);
     } finally {
-      setIsLoadingResponse(false);
       setIsProcessing(false);
     }
   };
@@ -942,7 +945,7 @@ const Onboarding = () => {
           setIsCoachSpeaking(false);
         },
         onMessage: (evt) => {
-          console.log('📨 Received event:', {
+          console.log('Received event:', {
             type: evt.type,
             transcript: evt.transcript,
             response: evt.response,
@@ -1055,7 +1058,7 @@ const Onboarding = () => {
           }
 
           if (assistantResponse) {
-            console.log('🤖 Agent response found:', assistantResponse);
+            console.log('Agent response found:', assistantResponse);
 
             const assistantMessage: Message = {
               id: generateMessageId(),
@@ -1129,9 +1132,9 @@ const Onboarding = () => {
           ];
 
           if (!allHandledEvents.includes(evt.type)) {
-            console.log('🔍 Event keys:', Object.keys(evt));
+            console.log('Event keys:', Object.keys(evt));
             if (evt.transcript || evt.text || evt.content || (evt.item && evt.item.content)) {
-              console.log('🚨 UNHANDLED EVENT CONTAINS TEXT CONTENT - THIS MIGHT BE USER INPUT!');
+              console.log('UNHANDLED EVENT CONTAINS TEXT CONTENT - THIS MIGHT BE USER INPUT!');
             }
           }
         }
@@ -1218,14 +1221,6 @@ const Onboarding = () => {
           errorMessage = "Connection timeout. Please check your internet connection and try again.";
         }
 
-        // const assistantErrorMessage: Message = {
-        //   id: generateMessageId(),
-        //   role: "assistant",
-        //   content: `Voice recording error: ${errorMessage} You can also type your message instead.`,
-        //   timestamp: new Date()
-        // };
-        // setMessages((prev) => [...prev, assistantErrorMessage]);
-
         setIsRecording(false);
         setIsConnected(false);
 
@@ -1234,7 +1229,7 @@ const Onboarding = () => {
           try {
             await realtimeChat.disconnect();
           } catch (e) {
-            // Cleanup error ignored
+            console.log('Cleanup after recording error done');
           }
           setRealtimeChat(null);
         }
@@ -1292,111 +1287,6 @@ const Onboarding = () => {
     scrollToChatArea();
 
     try {
-      if (
-        isConnectedToCRM &&
-        /callproof/i.test(messageText) &&
-        /(look\s?up|lookup|find|search)/i.test(messageText)
-      ) {
-        try {
-          let cleaned = messageText
-            .replace(/\s+in\s+callproof.*/i, '')
-            .replace(/.*?(look\s?up|lookup|find|search)\s*/i, '')
-            .replace(/^(the\s+)?(phone#|phone\s*number|email|contact|account)\s*(for\s*)?/i, '')
-            .trim();
-
-          const forMatch = cleaned.match(/(?:for|about|of)\s+(.+)/i);
-          const searchTerm = (forMatch ? forMatch[1] : cleaned)
-            .replace(/\s{2,}/g, ' ')
-            .trim();
-
-          if (searchTerm && searchTerm.length >= 2) {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error('User not authenticated');
-
-            const response = await supabase.functions.invoke('crm-account-query', {
-              body: {
-                searchTerm,
-                query: messageText,
-                userId: user.id
-              }
-            });
-
-            if (response.error) {
-              // CRM query error
-              throw new Error(response.error.message);
-            }
-
-            const assistantMessage: Message = {
-              id: generateMessageId(),
-              role: 'assistant',
-              content: response.data.response || `No results found for ${searchTerm}.`,
-              timestamp: new Date()
-            };
-
-            setMessages(prev => [...prev, assistantMessage]);
-
-            // Save assistant message to session
-            if (sessionId) {
-              await sessionManager.addMessage(sessionId, 'assistant', assistantMessage.content, 'text');
-            }
-
-            // Start typewriter effect for the response
-            startTypewriterEffect(assistantMessage.id, assistantMessage.content);
-
-            setIsLoadingResponse(false);
-            setIsProcessing(false);
-            return;
-          }
-        } catch (crmErr) {
-          // Generic CallProof lookup error
-        }
-      }
-
-      const wantsActivity = /callproof/i.test(messageText) && (
-        /\b(latest|last|recent)\b/i.test(messageText) ||
-        /\b(calls?|appointments?|meetings?|emails?)\b/i.test(messageText) ||
-        /activit/i.test(messageText)
-      );
-      if (isConnectedToCRM && wantsActivity) {
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          if (!user) throw new Error('User not authenticated');
-
-          const response = await supabase.functions.invoke('callproof-activity', {
-            body: {
-              userId: user.id,
-              prompt: messageText
-            }
-          });
-
-          if (response.error) throw new Error(response.error.message);
-
-          const content = response.data?.summary || 'No recent activity found.';
-          const assistantMessage: Message = {
-            id: generateMessageId(),
-            role: 'assistant',
-            content,
-            timestamp: new Date()
-          };
-
-          setMessages(prev => [...prev, assistantMessage]);
-
-          // Save assistant message to session
-          if (sessionId) {
-            await sessionManager.addMessage(sessionId, 'assistant', assistantMessage.content, 'text');
-          }
-
-          // Start typewriter effect for the response
-          startTypewriterEffect(assistantMessage.id, assistantMessage.content);
-
-          setIsLoadingResponse(false);
-          setIsProcessing(false);
-          return;
-        } catch (actErr) {
-          // CallProof activity error
-        }
-      }
-
       try {
         const { data: { user } } = await supabase.auth.getUser();
         const previousResponse = typeof window !== 'undefined' ? localStorage.getItem('lastAgentResponse') : null;
@@ -1411,7 +1301,7 @@ const Onboarding = () => {
             coachConfig: getCoachConfig(),
             userId: user?.id,
             previousResponse: previousResponse || undefined,
-            coachId: getCoachConfig().coachId || '04e4aa38-2284-4d01-b5f0-5c713369b679',
+            coachId: getCoachConfig().coachId || undefined,
           })
         });
 
@@ -1421,48 +1311,43 @@ const Onboarding = () => {
           let content: string = directData.response || '';
           if (Array.isArray(directData.candidates) && directData.candidates.length > 0) {
             const lines = directData.candidates.map((c: any, idx: number) => `**${idx + 1}.** ${c.name || 'Unknown'}${c.company ? ` - ${c.company}` : ''}${c.email ? ` (${c.email})` : ''}`);
-            content = `🔍 **Multiple Contacts Found**\n\nPlease select the correct one by number:\n\n${lines.join('\n')}`;
+            content = `**Multiple Contacts Found**\n\nPlease select the correct one by number:\n\n${lines.join('\n')}`;
           }
-
+          
           const isCRMData = content.includes('Contact Information') ||
-            content.includes('**Contact Information**') ||
-            content.includes('**Name:**') ||
-            content.includes('**Company:**') ||
-            content.includes('**Email:**') ||
-            content.includes('**Phone:**') ||
-            content.includes('Multiple Contacts Found');
+          content.includes('**Contact Information**') ||
+          content.includes('**Name:**') ||
+          content.includes('**Company:**') ||
+          content.includes('**Email:**') ||
+          content.includes('**Phone:**') ||
+          content.includes('Multiple Contacts Found');
+
+          let variableId = generateMessageId();
+          setIsLoadingResponse(false);
+          startTypewriterEffect(variableId, content);
 
           const assistantMessage: Message = {
-            id: generateMessageId(),
+            id: variableId,
             role: 'assistant',
             content,
             timestamp: new Date(),
             type: isCRMData ? 'crm_data' : 'general'
           };
-          setMessages(prev => [...prev, assistantMessage]);
 
-          // Save assistant message to session
+          setMessages(prev => [...prev, assistantMessage]);
           if (sessionId) {
             await sessionManager.addMessage(sessionId, 'assistant', assistantMessage.content, 'text');
           }
-
-          // Start typewriter effect for the response
-          startTypewriterEffect(assistantMessage.id, assistantMessage.content);
-
           try { localStorage.setItem('lastAgentResponse', directData.response || ''); } catch { }
         } else {
           throw new Error(directData.error || 'Direct call failed');
         }
       } catch (directError) {
-        // Direct call error
         console.error('Direct call error:', directError);
-
         let chatInstance = realtimeChat;
-
         if (!chatInstance) {
           chatInstance = await initRealtimeChat();
         }
-
         if (chatInstance) {
           await chatInstance.sendText(messageText);
         } else {
@@ -1470,8 +1355,6 @@ const Onboarding = () => {
         }
       }
     } catch (error) {
-      // Chat error
-
       const fallbackResponse: Message = {
         id: generateMessageId(),
         role: 'assistant',
@@ -1480,16 +1363,12 @@ const Onboarding = () => {
       };
 
       setMessages(prev => [...prev, fallbackResponse]);
-
-      // Save fallback message to session
       if (sessionId) {
         await sessionManager.addMessage(sessionId, 'assistant', fallbackResponse.content, 'text');
       }
-
-      // Start typewriter effect for the response
+      setIsLoadingResponse(false);
       startTypewriterEffect(fallbackResponse.id, fallbackResponse.content);
     } finally {
-      setIsLoadingResponse(false);
       setIsProcessing(false);
     }
   }, [inputValue, isLoadingResponse, isProcessing, isConnectedToCRM, getCoachConfig]);
@@ -1503,11 +1382,8 @@ const Onboarding = () => {
       content: "Great! I can see you're a Senior Sales Manager in SaaS. Based on your experience, I'd like to understand your current sales goals and challenges. What's the biggest obstacle you're facing in closing deals right now?",
       timestamp: new Date()
     };
-
-    setMessages(prev => [...prev, linkedInMessage]);
-
-    // Start typewriter effect for the response
     startTypewriterEffect(linkedInMessage.id, linkedInMessage.content);
+    setMessages(prev => [...prev, linkedInMessage]);
   };
 
   const handleCRMConnect = (crmId?: string, crmName?: string) => {
@@ -1521,12 +1397,8 @@ const Onboarding = () => {
         content: `Excellent! I can now access your ${crmName} data to better understand your sales pipeline and help optimize your approach. This will help me provide more targeted coaching based on your actual deals and customer interactions. Would you like to see your pipeline overview?`,
         timestamp: new Date()
       };
-
-      setMessages(prev => [...prev, crmMessage]);
-
-      // Start typewriter effect for the response
       startTypewriterEffect(crmMessage.id, crmMessage.content);
-
+      setMessages(prev => [...prev, crmMessage]);     
       setShowPipeline(true);
     } else {
       setShowCRMModal(true);
@@ -1685,22 +1557,10 @@ const Onboarding = () => {
       });
 
       setInputValue("");
-
-      // Auto-scroll to chat area after sending message
       scrollToChatArea();
 
       try {
         await handleSendMessageDirect(suggestion);
-        // let chatInstance = realtimeChat;
-        // if (!chatInstance) {
-        //   chatInstance = await initRealtimeChat();
-        // }
-
-        // if (chatInstance) {
-        //   await chatInstance.sendText(suggestion);
-        // } else {
-        //   throw new Error(`Unable to initialize connection to ${getCoachConfig().coachName || 'your coach'}`);
-        // }
       } catch (error) {
         const fallbackResponse: Message = {
           id: generateMessageId(),
@@ -1708,13 +1568,10 @@ const Onboarding = () => {
           content: "I'm having trouble connecting right now. Please try again or call me at (615) 845-6286 for immediate coaching support.",
           timestamp: new Date()
         };
-
-        setMessages(prev => [...prev, fallbackResponse]);
-
-        // Start typewriter effect for the response
-        startTypewriterEffect(fallbackResponse.id, fallbackResponse.content);
-      } finally {
         setIsLoadingResponse(false);
+        startTypewriterEffect(fallbackResponse.id, fallbackResponse.content);
+        setMessages(prev => [...prev, fallbackResponse]);
+      } finally {
         setIsProcessing(false);
       }
     }
@@ -1820,7 +1677,7 @@ const Onboarding = () => {
                 <h1 className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-200 bg-clip-text text-transparent">
                   AI Sales Coach Onboarding
                 </h1>
-                <Link to="/coach-settings" className="w-full sm:w-auto">
+                <Link to={`/company-coach?edit=${getCoachConfig().coachId }`} className="w-full sm:w-auto">
                   <Button variant="outline" size="sm" className="w-full sm:w-auto text-sm border-slate-300 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:hover:border-slate-500 dark:hover:bg-slate-800">
                     <Settings className="w-3 h-3 mr-1" />
                     Customize Coach
@@ -1908,7 +1765,7 @@ const Onboarding = () => {
               {/* Chat Section - Middle Area */}
               <div className="flex-1 flex flex-col bg-white dark:bg-gray-900 overflow-hidden min-w-0 h-full mobile:h-auto mobile:flex-1 tablet:h-full rounded-lg border border-slate-200/60 dark:border-slate-700/60">
                 {/* Welcome Header & Suggestions Section - Only show if user hasn't sent a message */}
-                {(!isVoiceMode &&!hasUserSentMessage) && (
+                {(!isVoiceMode && !hasUserSentMessage) && (
                   <div className="flex-1 flex flex-col items-center justify-center p-8">
                     <div className="text-center mb-8 max-w-2xl">
                       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 mb-6 shadow-lg">
@@ -1931,11 +1788,9 @@ const Onboarding = () => {
                         </div>
                       )}
                     </div>
-                    
                     {/* Input Area - Centered */}
                     <div className="w-full max-w-3xl mb-8">
                       <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200">
-                    
                         <Input
                           value={inputValue}
                           onChange={(e) => {
@@ -1951,7 +1806,6 @@ const Onboarding = () => {
                           className="flex-1 border-0 bg-transparent text-base placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-0 focus:outline-none"
                           disabled={isRecording || isCoachSpeaking || isLoadingResponse}
                         />
-                        
                         <Button
                           onClick={toggleVoiceMode}
                           variant="ghost"
@@ -1984,9 +1838,7 @@ const Onboarding = () => {
                         >
                           <Send className="w-5 h-5" />
                         </Button>
-                        
                       </div>
-                      
                       {/* Status Messages */}
                       {(isRecording || isCoachSpeaking) && (
                         <div className="text-center mt-3">
@@ -2005,34 +1857,33 @@ const Onboarding = () => {
                         </div>
                       )}
                     </div>
-                    
                     {/* Suggestion Cards */}
                     <div className="w-full max-w-4xl">
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {suggestions.slice(0, 8).map((suggestion, index) => {
-                        const IconComponent = suggestion.icon;
-                        return (
+                          const IconComponent = suggestion.icon;
+                          return (
                             <button
-                            key={`suggestion-${index}-${suggestion.title}`}
-                            onClick={() => handleSuggestionClick(suggestion.prompt, suggestion.type)}
+                              key={`suggestion-${index}-${suggestion.title}`}
+                              onClick={() => handleSuggestionClick(suggestion.prompt, suggestion.type)}
                               className="p-3 text-left bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-750 hover:border-gray-300 dark:hover:border-gray-600 transition-all duration-200 group"
                             >
                               <div className="flex items-start gap-3">
                                 <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg group-hover:bg-gray-200 dark:group-hover:bg-gray-600 transition-colors">
                                   <IconComponent className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                              </div>
+                                </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1 truncate">
-                                  {suggestion.title}
-                                </div>
+                                    {suggestion.title}
+                                  </div>
                                   <div className="text-xs text-gray-600 dark:text-gray-400 line-clamp-2">
-                                  {suggestion.description}
+                                    {suggestion.description}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
                             </button>
-                        );
-                      })}
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -2040,114 +1891,123 @@ const Onboarding = () => {
 
                 {/* Messages Area */}
                 {(!isVoiceMode && hasUserSentMessage) && (
-                <div id="chat-messages-container" className="flex-1 overflow-y-auto space-y-4 px-4 py-6 min-h-0 max-h-[calc(100vh-300px)] scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent overflow-x-hidden max-w-4xl mx-auto w-full">
-                  {messages.map((message) => {
-                    // Show user voice messages on the left (like agent)
-                    const isUserVoice = message.role === 'user' && message.message_type === 'audio';
-                    const isAgent = message.role === 'assistant';
-                    const isUserText = message.role === 'user' && !isUserVoice;
+                  <div id="chat-messages-container" className="flex-1 overflow-y-auto space-y-4 px-4 py-6 min-h-0 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600 scrollbar-track-transparent overflow-x-hidden max-w-4xl mx-auto w-full">
+                    {messages.map((message) => {
+                      // Show user voice messages on the left (like agent)
+                      const isUserVoice = message.role === 'user' && message.message_type === 'audio';
+                      const isAgent = message.role === 'assistant';
+                      const isUserText = message.role === 'user' && !isUserVoice;
 
-                    return (
-                      <div
-                        key={message.id}
-                        className={`flex gap-4 group ${isUserText ? 'justify-end' : 'justify-start'}`}
-                      >
-                        {!isUserText && (
-                          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
-                            {isAgent && (getCoachConfig().avatarUrl || '').trim() !== '' ? (
-                              <AvatarImage src={getCoachConfig().avatarUrl as string} alt={getCoachConfig().coachName} />
-                            ) : null}
-                            <AvatarFallback className="bg-blue-600 text-white text-sm">
-                              {isAgent
-                                ? getCoachInitials(getCoachConfig().coachName || 'Coach')
-                                : 'You'}
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex gap-4 group ${isUserText ? 'justify-end' : 'justify-start'}`}
+                        >
+                          {!isUserText && (
+                            <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                              {isAgent && (getCoachConfig().avatarUrl || '').trim() !== '' ? (
+                                <AvatarImage src={getCoachConfig().avatarUrl as string} alt={getCoachConfig().coachName} />
+                              ) : null}
+                              <AvatarFallback className="bg-blue-600 text-white text-sm">
+                                {isAgent
+                                  ? getCoachInitials(getCoachConfig().coachName || 'Coach')
+                                  : 'You'}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
 
-                        <div className={`max-w-[70%] ${isUserText ? 'ml-auto' : ''}`}>
-                          <div className={`p-4 rounded-2xl ${isAgent
-                            ? message.type === 'crm_data'
-                              ? 'bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800'
-                              : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                            : isUserVoice
-                              ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 text-gray-900 dark:text-gray-100'
-                              : 'bg-blue-600 dark:bg-blue-600 text-white'
-                            }`}>
-                            <MessageContent
-                              content={message.content}
-                              type={message.type}
-                              messageId={message.id}
-                              typewriterState={isAgent ? typewriterMessages[message.id] : undefined}
-                            />
-                          </div>
-                          <div className={`text-xs text-gray-500 dark:text-gray-400 mt-2 ${isUserText ? 'text-right' : 'text-left'}`}>
-                            {message.timestamp.toLocaleTimeString()}
-                            {isUserVoice && (
-                              <span className="ml-2 text-yellow-600 dark:text-yellow-400 font-medium">
-                                (Voice)
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {isUserText && (
-                          <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
-                            <AvatarFallback className="bg-gray-600 text-white text-sm">
-                              You
-                            </AvatarFallback>
-                          </Avatar>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {isConnectedToLinkedIn && (
-                    <Card className="p-2 bg-success/10 border-success/20">
-                      <div className="flex items-center gap-2 text-success">
-                        <Linkedin className="w-3 h-3" />
-                        <span className="text-sm font-medium">LinkedIn Connected</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Your profile information will help personalize your coaching experience
-                      </p>
-                    </Card>
-                  )}
-
-                  {/* Typing indicator */}
-                  {isLoadingResponse && (
-                    <div className="flex gap-4 justify-start">
-                      <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
-                        {(getCoachConfig().avatarUrl || '').trim() !== '' ? (
-                          <AvatarImage src={getCoachConfig().avatarUrl as string} alt={getCoachConfig().coachName} />
-                        ) : null}
-                        <AvatarFallback className="bg-blue-600 text-white text-sm">
-                          {getCoachInitials(getCoachConfig().coachName || 'Coach')}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="max-w-[70%]">
-                        <div className="p-4 rounded-2xl bg-gray-100 dark:bg-gray-800">
-                          <div className="flex items-center gap-3">
-                            {/* Typing animation dots */}
-                            <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                              <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                          <div className={`max-w-[70%] ${isUserText ? 'ml-auto' : ''}`}>
+                            <div className={`p-4 rounded-2xl ${isAgent
+                              ? message.type === 'crm_data'
+                                ? 'bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800'
+                                : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                              : isUserVoice
+                                ? 'bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 text-gray-900 dark:text-gray-100'
+                                : 'bg-blue-600 dark:bg-blue-600 text-white'
+                              }`}>
+                              <MessageContent
+                                content={message.content}
+                                type={message.type}
+                                messageId={message.id}
+                                typewriterState={isAgent ? typewriterMessages[message.id] : undefined}
+                              />
                             </div>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
-                              {(getCoachConfig().coachName || 'Coach').split(' ')[0]} is typing...
-                            </p>
+                            <div className={`text-xs text-gray-500 dark:text-gray-400 mt-2 ${isUserText ? 'text-right' : 'text-left'}`}>
+                              {message.timestamp.toLocaleTimeString()}
+                              {isUserVoice && (
+                                <span className="ml-2 text-yellow-600 dark:text-yellow-400 font-medium">
+                                  (Voice)
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {isUserText && (
+                            <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                              <AvatarFallback className="bg-gray-600 text-white text-sm">
+                                You
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    {isConnectedToLinkedIn && (
+                      <Card className="p-2 bg-success/10 border-success/20">
+                        <div className="flex items-center gap-2 text-success">
+                          <Linkedin className="w-3 h-3" />
+                          <span className="text-sm font-medium">LinkedIn Connected</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Your profile information will help personalize your coaching experience
+                        </p>
+                      </Card>
+                    )}
+
+                    {/* Typing indicator */}
+                    {isLoadingResponse && (
+                      <div className="flex gap-4 justify-start">
+                        <Avatar className="w-8 h-8 flex-shrink-0 mt-1">
+                          {(getCoachConfig().avatarUrl || '').trim() !== '' ? (
+                            <AvatarImage src={getCoachConfig().avatarUrl as string} alt={getCoachConfig().coachName} />
+                          ) : null}
+                          <AvatarFallback className="bg-blue-600 text-white text-sm">
+                            {getCoachInitials(getCoachConfig().coachName || 'Coach')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="max-w-[70%]">
+                          <div className="p-4 rounded-2xl bg-gray-100 dark:bg-gray-800">
+                            <div className="flex items-center gap-3">
+                              {/* Typing animation dots */}
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                              </div>
+                              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                                {(getCoachConfig().coachName || 'Coach').split(' ')[0]} is thinking...
+                              </p>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
                 )}
 
                 {/* Voice Mode Interface */}
                 {isVoiceMode && (
                   <div className="border-t pt-4">
+                    <Button
+                      onClick={toggleVoiceMode}
+                      variant="outline"
+                      size="sm"
+                      className="mb-4 mx-auto flex items-center gap-1 text-sm border-slate-300 hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:hover:border-slate-500 dark:hover:bg-slate-800"
+                    >
+                      <MessageCircleDashedIcon className="w-3 h-3 mr-1" />
+                      Switch to Chat
+                    </Button>
                     <VoiceCoach
                       coachPersonality={getCoachConfig().coachingStyle || "supportive sales coach"}
                       scenario={`sales coaching for ${getCoachConfig().industry || "general"} industry`}
@@ -2182,7 +2042,7 @@ const Onboarding = () => {
 
                 {/* Text Input Area */}
                 {!isVoiceMode && hasUserSentMessage && (
-                  <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 flex-shrink-0">
+                  <div className="border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 pt-4 flex-shrink-0">
                     <div className="max-w-4xl mx-auto">
                       <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-200 max-w-4xl pb-4 z-50 ">
                         <Input
@@ -2190,7 +2050,7 @@ const Onboarding = () => {
                           onChange={(e) => {
                             setInputValue(e.target.value);
                           }}
-                          placeholder="Tell me about your sales goals and challenges...ddd"
+                          placeholder="Tell me about your sales goals and challenges..."
                           onKeyPress={(e) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                               e.preventDefault();
@@ -2233,7 +2093,6 @@ const Onboarding = () => {
                           <Send className="w-5 h-5" />
                         </Button>
                       </div>
-                      
                       {/* Status Messages */}
                       {(isRecording || isCoachSpeaking) && (
                         <div className="text-center mt-3">

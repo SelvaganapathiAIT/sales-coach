@@ -427,16 +427,10 @@ export default function ChatHistory({
         <>
           {/* Compact Session Statistics */}
           <Card className="p-3 mb-3 bg-gradient-to-br from-white/95 to-slate-50/90 dark:from-slate-800/95 dark:to-slate-900/90 border border-slate-200/70 dark:border-slate-700/70 shadow-lg backdrop-blur-md">
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-2 gap-2 text-center">
               <div className="p-2 rounded-lg bg-gradient-to-br from-blue-50/80 to-blue-100/60 dark:from-blue-950/60 dark:to-blue-900/40 border border-blue-200/70 dark:border-blue-800/70">
                 <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{sessions.length}</div>
                 <div className="text-xs text-muted-foreground">Sessions</div>
-              </div>
-              <div className="p-2 rounded-lg bg-gradient-to-br from-green-50/80 to-green-100/60 dark:from-green-950/60 dark:to-green-900/40 border border-green-200/70 dark:border-green-800/70">
-                <div className="text-lg font-bold text-green-600 dark:text-green-400">
-                  {sessions.filter(s => !s.ended_at).length}
-                </div>
-                <div className="text-xs text-muted-foreground">Active</div>
               </div>
               <div className="p-2 rounded-lg bg-gradient-to-br from-purple-50/80 to-purple-100/60 dark:from-purple-950/60 dark:to-purple-900/40 border border-purple-200/70 dark:border-purple-800/70">
                 <div className="text-lg font-bold text-purple-600 dark:text-purple-400">

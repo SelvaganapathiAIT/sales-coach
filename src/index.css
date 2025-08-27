@@ -194,3 +194,15 @@ body {
     padding-right: 3rem;
   }
 }
+
+.auth-layout{
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-left: 5%;
+  margin-right: 5%;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  padding-left: 10px;
+  padding-right: 10px;
+
+}

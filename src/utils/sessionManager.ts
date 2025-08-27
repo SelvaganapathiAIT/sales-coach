@@ -103,7 +103,7 @@ class SessionManagerImpl implements SessionManager {
     metadata: Record<string, any> = {}
   ): Promise<void> {
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('conversation_messages')
         .insert({
           session_id: sessionId,
@@ -116,6 +116,9 @@ class SessionManagerImpl implements SessionManager {
 
       if (error) {
         console.error('Error adding message:', error);
+      }
+      if (data) {
+        console.log('Message added successfully:', data);
       }
     } catch (error) {
       console.error('Error adding message:', error);

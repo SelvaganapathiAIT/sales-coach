@@ -16,14 +16,13 @@ export async function storeAssistantConfig(coachId, assistantData) {
   ]);
   if (error) throw error;
 }
-export async function updateCoachWithAgent(coachId, agentId,newSystemPrompt) {
+export async function updateCoachWithAgent(coachId, agentId, newSystemPrompt) {
   const { error } = await supabase.from("coaches").update({
     agent_id: agentId
   }).eq("id", coachId);
   if (error) throw error;
-
   const { assist_error } = await supabase.from("coach_assistants").update({
     system_prompt: newSystemPrompt
-  }).eq("id", coachId);
+  }).eq("coach_id", coachId);
   if (assist_error) throw assist_error;
 }

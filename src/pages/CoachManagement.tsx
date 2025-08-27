@@ -61,21 +61,31 @@ const CoachManagement = () => {
     }
   ];
 
-  // State for coaches with localStorage persistence
-  const [coaches, setCoaches] = useState<any[]>(initialCoaches);
+  // State for coaches with localStorage persistence - Initialize with empty array
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchCoaches() {
       try {
+        setIsLoading(true);
         const data = await getOwnCoaches();
-        setCoaches(data);
+        // Ensure we always set an array, fallback to initialCoaches if needed
+        if (!data || data.length === 0) {
+          setCoaches(initialCoaches);
+        } else {
+          setCoaches(data);
+        }
       } catch (err) {
         console.error("Failed to fetch coaches:", err);
+        // Fallback to initial coaches on error
+        setCoaches(initialCoaches);
+      } finally {
+        setIsLoading(false);
       }
     }
     fetchCoaches();
   }, []);
-
 
   function timeAgo(dateString: string | null): string {
     if (!dateString) return "N/A";
@@ -101,11 +111,16 @@ const CoachManagement = () => {
 
     return "just now";
   }
+
   async function getOwnCoaches() {
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError) throw userError;
     if (!user) return [];
-    if (!user?.id) { setIsAdmin(false); return; }
+    if (!user?.id) { 
+      setIsAdmin(false); 
+      return [];
+    }
+    
     // Check if user is admin
     const { data: isAdminRole, error: adminErr } = await supabase.rpc('has_role', {
       _user_id: user.id,
@@ -171,9 +186,7 @@ const CoachManagement = () => {
       lastUpdated: new Date(coach.updated_at).toLocaleDateString(),
       image: coach.avatar_url || inboundSalesCoach,
     }));
-
   }
-
 
   // Fetch default home coach setting
   useEffect(() => {
@@ -211,13 +224,32 @@ const CoachManagement = () => {
 
   // Update localStorage when coaches change
   useEffect(() => {
-    localStorage.setItem('coaches', JSON.stringify(coaches));
+    if (coaches.length > 0) {
+      localStorage.setItem('coaches', JSON.stringify(coaches));
+    }
   }, [coaches]);
 
-  const filteredCoaches = coaches.filter(coach =>
+  // Safe filter operation with fallback
+  const filteredCoaches = (coaches || []).filter(coach =>
     coach.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     coach.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center py-12">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold mb-2">Loading coaches...</h3>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -232,6 +264,7 @@ const CoachManagement = () => {
             <span className="mx-2">/</span>
             <span className="text-foreground font-medium">Coach Management</span>
           </nav>
+          
           {/* Header Section */}
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -342,7 +375,7 @@ const CoachManagement = () => {
           </div>
 
           {/* Empty State */}
-          {filteredCoaches.length === 0 && (
+          {filteredCoaches.length === 0 && !isLoading && (
             <div className="text-center py-12">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No coaches found</h3>

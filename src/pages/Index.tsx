@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthLayout } from "@/components/AuthLayout";
 
 import Hero from "@/components/Hero";
 import CoachDirectory from "@/components/CoachDirectory";
@@ -47,10 +48,12 @@ const Index = () => {
   // Show landing page for non-authenticated users
   return (
     <div className="min-h-screen w-full bg-background">
-      <Hero />
-      <CoachDirectory />
-      <HowItWorks />
-      <Footer />
+      <AuthLayout>
+        <Hero />
+        <CoachDirectory />
+        <HowItWorks />
+        <Footer />
+      </AuthLayout>
     </div>
   );
 };

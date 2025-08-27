@@ -46,7 +46,7 @@ export const useVoiceCoach = (
 
       // Create audio context - use 16kHz to match ElevenLabs
       audioContextRef.current = new AudioContext({ sampleRate: 16000 });
-      const supabaseUrl = (process.env.SUPABASE_URL || "").replace(/^https?:\/\//, "wss://");
+      const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL || "").replace(/^https?:\/\//, "wss://");
       // Connect to ElevenLabs via our edge function with authentication
       let wsUrl = `${supabaseUrl}/functions/v1/elevenlabs-websocket`;
 

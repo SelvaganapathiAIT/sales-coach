@@ -293,6 +293,7 @@ const CompanyCoach: React.FC = () => {
             title: "Error",
             description: "Failed to load coach data",
             variant: "destructive",
+             duration: 3000,
           });
         } finally {
           setIsLoadingCoach(false);
@@ -357,6 +358,7 @@ const CompanyCoach: React.FC = () => {
           title: "Invalid Email",
           description: "Please enter a valid email address",
           variant: "destructive",
+           duration: 3000,
         });
         return;
       }
@@ -428,6 +430,7 @@ const CompanyCoach: React.FC = () => {
           title: "File Too Large",
           description: "Please select an image smaller than 5MB",
           variant: "destructive",
+           duration: 3000,
         });
         return;
       }
@@ -438,6 +441,7 @@ const CompanyCoach: React.FC = () => {
           title: "Invalid File Type",
           description: "Please select an image file",
           variant: "destructive",
+           duration: 3000,
         });
         return;
       }
@@ -487,6 +491,8 @@ const CompanyCoach: React.FC = () => {
       toast({
         title: "AI Pre-fill Complete",
         description: "Your coach has been pre-filled with AI-generated content based on expert sales coaching principles.",
+         variant: "success",
+          duration: 3000,
       });
 
     } catch (error) {
@@ -495,6 +501,7 @@ const CompanyCoach: React.FC = () => {
         title: "Pre-fill Error",
         description: "Failed to pre-fill form with AI content. Please try again.",
         variant: "destructive",
+         duration: 3000,
       });
     } finally {
       setIsPrefilling(false);
@@ -519,6 +526,8 @@ const CompanyCoach: React.FC = () => {
     toast({
       title: "Save Coach",
       description: "Do you want to save this coach as a draft or publish it?",
+      variant: "info",
+      duration: 8000,
       action: (
         <div className="flex gap-2">
           <Button
@@ -630,7 +639,7 @@ const CompanyCoach: React.FC = () => {
         if (coachError) throw coachError;
 
         // Update the coach_assistants table
-        const { data: assistdata, error: assistantError } = await supabase
+        const { data: assistantData, error: assistantError } = await supabase
           .from("coach_assistants")
           .update({
             coaching_style: coachPayload.coaching_style,
@@ -666,8 +675,7 @@ const CompanyCoach: React.FC = () => {
           console.error("Error updating coach or assistant:", coachError, assistantError);
           throw coachError || assistantError;
         }
-        result = { success: true, coach: coachdata, assistant: assistdata };
-        console.log("Coach updated successfully:", result);
+        result = { success: true, coach: coachData, assistant: assistantData };
       } else {
         const { data, error } = await supabase.functions.invoke("create-coach", {
           body: coachPayload,
@@ -678,10 +686,19 @@ const CompanyCoach: React.FC = () => {
 
       toast({
         title: isDraft ? "Draft Saved" : "Coach Published",
+        variant: "success",
         description: isDraft
           ? "Your coach has been saved as a draft."
           : "Your coach has been published successfully!",
+        duration: 3000,
       });
+      console.log("Coach save result:", result);
+      // Redirect to coach management after a short delay
+      setTimeout(() => {
+        window.location.href = "/coach-management";
+      }, 3000);
+
+      return result;
     } catch (error) {
       console.error("Error saving coach:", error);
       toast({
@@ -691,12 +708,94 @@ const CompanyCoach: React.FC = () => {
             ? error.message
             : "Failed to save coach. Please try again.",
         variant: "destructive",
+        duration: 3000,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
+  // Coaching Style
+  const coachingOptions = {
+    motivational: {
+      label: "Motivational",
+      description: "Encouraging and supportive approach",
+      icon: <Heart className="h-4 w-4 text-green-500" />,
+    },
+    direct: {
+      label: "Direct",
+      description: "Straightforward, no-nonsense feedback",
+      icon: <Target className="h-4 w-4 text-blue-500" />,
+    },
+    tough_love: {
+      label: "Tough Love",
+      description: "Challenging but caring approach",
+      icon: <Zap className="h-4 w-4 text-orange-500" />,
+    },
+    analytical: {
+      label: "Analytical",
+      description: "Data-driven and methodical",
+      icon: <TrendingUp className="h-4 w-4 text-purple-500" />,
+    },
+  };
 
+  // Coaching Intensity
+  const intensityOptions = {
+    low: {
+      label: "Low Intensity",
+      description: "Relaxed coaching sessions, basic feedback",
+    },
+    medium: {
+      label: "Medium Intensity",
+      description: "Focused sessions with actionable insights",
+    },
+    high: {
+      label: "High Intensity",
+      description: "Demanding sessions, detailed analysis",
+    },
+    maximum: {
+      label: "Maximum Intensity",
+      description: "Elite-level coaching, no stone unturned",
+    },
+  };
+
+  // Performance Standards
+  const performanceOptions = {
+    beginner: {
+      label: "Beginner Standards",
+      description: "Patient approach for new sales reps",
+    },
+    intermediate: {
+      label: "Intermediate Standards",
+      description: "Moderate expectations for developing reps",
+    },
+    veteran: {
+      label: "Veteran Standards",
+      description: "High expectations for experienced reps",
+    },
+    elite: {
+      label: "Elite Standards",
+      description: "Exceptional standards for top performers",
+    },
+  };
+
+  // Permission Options
+  const permissionOptions = {
+    public: {
+      label: "Public",
+      description: "Anyone can access this coach",
+      icon: <Globe className="h-4 w-4" />,
+    },
+    team_only: {
+      label: "Team Only",
+      description: "Only your team members can access",
+      icon: <Users className="h-4 w-4" />,
+    },
+    email_restricted: {
+      label: "Email Restricted",
+      description: "Only specific email addresses can access",
+      icon: <Lock className="h-4 w-4" />,
+    },
+  };
 
   if (isLoadingCoach) {
     return (
@@ -882,49 +981,40 @@ const CompanyCoach: React.FC = () => {
                 {/* Coaching Style */}
                 <div className="space-y-4">
                   <Label>Coaching Style</Label>
-                  <Select value={formData.coachingStyle} onValueChange={(value) => handleInputChange("coachingStyle", value)}>
+                  <Select
+                    value={formData.coachingStyle}
+                    onValueChange={(value) => handleInputChange("coachingStyle", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select coaching approach" />
+                      {formData.coachingStyle ? (
+                        <div className="flex items-center gap-2">
+                          {coachingOptions[formData.coachingStyle].icon}
+                          <span className="font-medium">
+                            {coachingOptions[formData.coachingStyle].label}
+                          </span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="Select coaching approach" />
+                      )}
                     </SelectTrigger>
+
                     <SelectContent>
-                      <SelectItem value="motivational">
-                        <div className="flex items-center gap-2">
-                          <Heart className="h-4 w-4 text-green-500" />
-                          <div>
-                            <div className="font-medium">Motivational</div>
-                            <div className="text-sm text-muted-foreground">Encouraging and supportive approach</div>
+                      {Object.entries(coachingOptions).map(([value, option]) => (
+                        <SelectItem key={value} value={value}>
+                          <div className="flex items-center gap-2">
+                            {option.icon}
+                            <div>
+                              <div className="font-medium">{option.label}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {option.description}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="direct">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-4 w-4 text-blue-500" />
-                          <div>
-                            <div className="font-medium">Direct</div>
-                            <div className="text-sm text-muted-foreground">Straightforward, no-nonsense feedback</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="tough_love">
-                        <div className="flex items-center gap-2">
-                          <Zap className="h-4 w-4 text-orange-500" />
-                          <div>
-                            <div className="font-medium">Tough Love</div>
-                            <div className="text-sm text-muted-foreground">Challenging but caring approach</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="analytical">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-purple-500" />
-                          <div>
-                            <div className="font-medium">Analytical</div>
-                            <div className="text-sm text-muted-foreground">Data-driven and methodical</div>
-                          </div>
-                        </div>
-                      </SelectItem>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+
                 </div>
               </CardContent>
             </Card>
@@ -1021,9 +1111,9 @@ const CompanyCoach: React.FC = () => {
                   </Select>
                 </div>
 
-                {/* First Message */}
+                {/* Greeting Message */}
                 <div className="space-y-2">
-                  <Label>First Message</Label>
+                  <Label>Greeting Message</Label>
                   <Textarea
                     placeholder="Hey {name}! I'm {coach_name}, your AI sales coach. Ready to crush some calls today?"
                     value={formData.firstMessage || ""}
@@ -1220,35 +1310,31 @@ const CompanyCoach: React.FC = () => {
                 {/* Coaching Intensity */}
                 <div className="space-y-4">
                   <Label>Coaching Intensity</Label>
-                  <Select value={formData.intensityLevel} onValueChange={(value) => handleInputChange("intensityLevel", value)}>
+                  <Select
+                    value={formData.intensityLevel}
+                    onValueChange={(value) => handleInputChange("intensityLevel", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select intensity level" />
+                      {formData.intensityLevel ? (
+                        <span className="font-medium">
+                          {intensityOptions[formData.intensityLevel].label}
+                        </span>
+                      ) : (
+                        <SelectValue placeholder="Select intensity level" />
+                      )}
                     </SelectTrigger>
+
                     <SelectContent>
-                      <SelectItem value="low">
-                        <div>
-                          <div className="font-medium">Low Intensity</div>
-                          <div className="text-sm text-muted-foreground">Relaxed coaching sessions, basic feedback</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="medium">
-                        <div>
-                          <div className="font-medium">Medium Intensity</div>
-                          <div className="text-sm text-muted-foreground">Focused sessions with actionable insights</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="high">
-                        <div>
-                          <div className="font-medium">High Intensity</div>
-                          <div className="text-sm text-muted-foreground">Demanding sessions, detailed analysis</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="maximum">
-                        <div>
-                          <div className="font-medium">Maximum Intensity</div>
-                          <div className="text-sm text-muted-foreground">Elite-level coaching, no stone unturned</div>
-                        </div>
-                      </SelectItem>
+                      {Object.entries(intensityOptions).map(([value, option]) => (
+                        <SelectItem key={value} value={value}>
+                          <div>
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {option.description}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1256,39 +1342,34 @@ const CompanyCoach: React.FC = () => {
                 {/* Performance Standards */}
                 <div className="space-y-4">
                   <Label>Performance Standards</Label>
-                  <Select value={formData.performanceStandard} onValueChange={(value) => handleInputChange("performanceStandard", value)}>
+                  <Select
+                    value={formData.performanceStandard}
+                    onValueChange={(value) => handleInputChange("performanceStandard", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select performance expectations" />
+                      {formData.performanceStandard ? (
+                        <span className="font-medium">
+                          {performanceOptions[formData.performanceStandard].label}
+                        </span>
+                      ) : (
+                        <SelectValue placeholder="Select performance expectations" />
+                      )}
                     </SelectTrigger>
+
                     <SelectContent>
-                      <SelectItem value="beginner">
-                        <div>
-                          <div className="font-medium">Beginner Standards</div>
-                          <div className="text-sm text-muted-foreground">Patient approach for new sales reps</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="intermediate">
-                        <div>
-                          <div className="font-medium">Intermediate Standards</div>
-                          <div className="text-sm text-muted-foreground">Moderate expectations for developing reps</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="veteran">
-                        <div>
-                          <div className="font-medium">Veteran Standards</div>
-                          <div className="text-sm text-muted-foreground">High expectations for experienced reps</div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="elite">
-                        <div>
-                          <div className="font-medium">Elite Standards</div>
-                          <div className="text-sm text-muted-foreground">Exceptional standards for top performers</div>
-                        </div>
-                      </SelectItem>
+                      {Object.entries(performanceOptions).map(([value, option]) => (
+                        <SelectItem key={value} value={value}>
+                          <div>
+                            <div className="font-medium">{option.label}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {option.description}
+                            </div>
+                          </div>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-
                 {/* Preview Box */}
                 <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20 rounded-lg border">
                   <h4 className="font-semibold mb-2 text-foreground">Coaching Preview</h4>
@@ -1319,38 +1400,39 @@ const CompanyCoach: React.FC = () => {
               <CardContent className="space-y-6">
                 <div className="space-y-4">
                   <Label>Coach Visibility</Label>
-                  <Select value={formData.permissions} onValueChange={(value) => handleInputChange("permissions", value)}>
+
+                  {/** Permission Options */}
+                 <Select
+                    value={formData.permissions}
+                    onValueChange={(value) => handleInputChange("permissions", value)}
+                  >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select visibility level" />
+                      {formData.permissions ? (
+                        <div className="flex items-center gap-2">
+                          {permissionOptions[formData.permissions].icon}
+                          <span className="font-medium">
+                            {permissionOptions[formData.permissions].label}
+                          </span>
+                        </div>
+                      ) : (
+                        <SelectValue placeholder="Select visibility level" />
+                      )}
                     </SelectTrigger>
+
                     <SelectContent>
-                      <SelectItem value="public">
-                        <div className="flex items-center gap-2">
-                          <Globe className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Public</div>
-                            <div className="text-sm text-muted-foreground">Anyone can access this coach</div>
+                      {Object.entries(permissionOptions).map(([value, option]) => (
+                        <SelectItem key={value} value={value}>
+                          <div className="flex items-center gap-2">
+                            {option.icon}
+                            <div>
+                              <div className="font-medium">{option.label}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {option.description}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="team_only">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Team Only</div>
-                            <div className="text-sm text-muted-foreground">Only your team members can access</div>
-                          </div>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="email_restricted">
-                        <div className="flex items-center gap-2">
-                          <Lock className="h-4 w-4" />
-                          <div>
-                            <div className="font-medium">Email Restricted</div>
-                            <div className="text-sm text-muted-foreground">Only specific email addresses can access</div>
-                          </div>
-                        </div>
-                      </SelectItem>
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>

@@ -39,7 +39,7 @@ export async function createElevenLabsTool(coachId, coachConfig, userId) {
       description: "Handles CallProof real-time and CRM data user queries.",
       response_timeout_secs: 30,
       disable_interruptions: true,
-      force_pre_tool_speech: false,
+      force_pre_tool_speech: true,
       api_schema: {
         url: `${functionUrl}/chat-with-agent`,
         method: "POST",
@@ -109,14 +109,28 @@ export async function updateElevenLabsAgent(agentId, toolId, previousPrompt, CAL
   const updatedPrompt = `${previousPrompt}
 
 ---
-IMPORTANT:
-If the user asks anything related to CallProof real-time data and other CRM realtime data, use the '${CALLPROOF_TOOL}' custom tool.
+IMPORTANT RULES:
+If the user asks anything related to real-time database and other CRM realtime data, use the '${CALLPROOF_TOOL}' custom tool.
+1. Use the appropriate tool (e.g., ${CALLPROOF_TOOL}) to retrieve the requested details.
+2. Before showing results, display a short "WAITING MESSAGES" so the user feels the system is fetching data in real time. 
+   Examples:
+   - "Just a moment, I’m pulling up the details for you "
+   - "Hang tight, fetching the info right now "
+   - "One sec, I’m grabbing the records for you "
+3. Once the data is retrieved, present it clearly and organized.
+4. Add a sweet, warm CLOSING MESSAGES after the results. 
+   Examples:
+   - "Here you go! I pulled up the details for you "
+   - "Found it for you  Hope this helps you out!"
+   - "All set Let me know if you’d like me to dig deeper!"
+Rotate the WAITING MESSAGES and SWEET CLOSING MESSAGES so the interaction feels natural.
 
 Example:
 CallProof: "Help me find John doe's call details in CallProof."
 HubSpot: "Show all activities and calls related to John doe in HubSpot."
 Zoho CRM: "Retrieve John doe's recent calls and notes in Zoho CRM."
 Salesforce: "Get all logged calls and meeting details for John doe in Salesforce.",
+
 → Check with '${CALLPROOF_TOOL}'`;
   const response = await fetch(`https://api.elevenlabs.io/v1/convai/agents/${agentId}`, {
     method: "PATCH",

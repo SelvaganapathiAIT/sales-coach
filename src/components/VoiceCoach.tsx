@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -22,37 +22,47 @@ const VoiceCoach = ({
   const [volume, setVolume] = useState(0.8);
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const connectedRef = useRef(false);
 
-  const conversation = useVoiceCoach(
-    () => {
-      console.log('Connected to ElevenLabs Voice Agent');
+const conversation = useVoiceCoach(
+  () => {
+    if (!connectedRef.current) {
+      connectedRef.current = true;
       toast({
         title: "Voice Coach Connected",
         description: "Your AI sales coach is ready to help!",
-      });
-    },
-    () => {
-      console.log('Disconnected from ElevenLabs Voice Agent');
-      toast({
-        title: "Session Ended",
-        description: "Voice coaching session has ended",
-      });
-    },
-    (message) => {
-      console.log('Received message:', message);
-      if (message.source === 'user' && onTranscript) {
-        onTranscript(message.message);
-      }
-    },
-    (error) => {
-      console.error('Voice conversation error:', error);
-      toast({
-        title: "Connection Error",
-        description: "There was an issue with the voice connection",
-        variant: "destructive",
+        variant: "success",
+        duration: 3000,
       });
     }
-  );
+  },
+  () => {
+    connectedRef.current = false;
+    toast({
+      title: "Session Ended",
+      description: "Voice coaching session has ended",
+      variant: "info",
+      duration: 3000,
+    });
+  },
+  (message) => {
+    console.log("Received message:", message);
+    if (message.source === "user" && onTranscript) {
+      onTranscript(message.message);
+    }
+  },
+  (error) => {
+    console.error("Voice conversation error:", error);
+    toast({
+      title: "Connection Error",
+      description: "There was an issue with the voice connection",
+      variant: "destructive",
+    });
+  }
+);
+
+
+  console.log("*******", conversation)
 
   // Check for existing user session
   useEffect(() => {
@@ -79,7 +89,6 @@ const VoiceCoach = ({
     }
 
     try {
-      console.log('Starting conversation...');
       await conversation.startSession();
     } catch (error) {
       console.error('Error starting conversation:', error);
@@ -191,7 +200,7 @@ const VoiceCoach = ({
             <Button
               onClick={startConversation}
               disabled={isConnecting}
-              className="w-32 h-32 rounded-full bg-primary hover:bg-primary/90"
+              className="w-32 h-32 rounded-full bg-primary"
             >
               {isConnecting ? (
                 <Loader2 className="w-8 h-8 animate-spin" />

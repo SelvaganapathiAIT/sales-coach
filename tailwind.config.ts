@@ -14,26 +14,24 @@ export default {
       center: true,
       padding: "2rem",
       screens: {
-        "2xl": "100%", // Remove max-width constraints for full-width layouts
+        "2xl": "100%",
       },
     },
     extend: {
       screens: {
-        // Updated breakpoints based on user requirements
-        sm: "640px",           // Mobile starts here (Tailwind default)
-        md: "768px",           // Tablet
-        lg: "1024px",          // Desktop  
-        xl: "1280px",          // Large Desktop
-        "2xl": "1536px",       // 2K / Wide Desktop
-        "3xl": "3440px",       // Ultra-Wide (4K) - Custom breakpoint
-        
-        // Custom named breakpoints for specific device targeting
-        mobile: { max: "639px" },                    // Mobile only
-        tablet: { min: "640px", max: "1023px" },     // Tablet range
-        desktop: { min: "1024px", max: "1279px" },   // Desktop range
-        large: { min: "1280px", max: "1535px" },     // Large Desktop range  
-        wide: { min: "1536px", max: "3439px" },      // 2K / Wide Desktop range
-        ultra: { min: "3440px" },                    // Ultra-Wide (4K+)
+        sm: "640px",
+        md: "768px",
+        lg: "1024px",
+        xl: "1280px",
+        "2xl": "1536px",
+        "3xl": "3440px",
+
+        mobile: { max: "639px" },
+        tablet: { min: "640px", max: "1023px" },
+        desktop: { min: "1024px", max: "1279px" },
+        large: { min: "1280px", max: "1535px" },
+        wide: { min: "1536px", max: "3439px" },
+        ultra: { min: "3440px" },
       },
       colors: {
         border: "hsl(var(--border))",
@@ -87,9 +85,34 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        "dialog-in": {
+          "0%": { opacity: "0", transform: "translate(-50%, -40%) scale(0.95)" },
+          "100%": { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
+        },
+        "dialog-out": {
+          "0%": { opacity: "1", transform: "translate(-50%, -50%) scale(1)" },
+          "100%": { opacity: "0", transform: "translate(-50%, -40%) scale(0.95)" },
+        },
+        "slide-from-top": {
+          "0%": { opacity: "0", transform: "translate(-50%, -30%)" },
+          "100%": { opacity: "1", transform: "translate(-50%, -50%)" },
+        },
+      },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "dialog-in": "dialog-in 0.3s ease-out forwards",
+        "dialog-out": "dialog-out 0.2s ease-in forwards",
+        "slide-from-top": "slide-from-top 0.35s ease-out forwards",
       },
     },
   },
