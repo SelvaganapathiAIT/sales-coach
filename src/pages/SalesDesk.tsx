@@ -16,6 +16,7 @@ import CallProofEvents from "@/components/CallProofEvents";
 
 import { Pencil, Check, X, HomeIcon } from "lucide-react";
 import { Link } from "react-router-dom";
+import { AuthLayout } from "@/components/AuthLayout";
 
 interface MetricState {
   callsToday: number | null;
@@ -238,6 +239,7 @@ const SalesDesk: React.FC = () => {
 
   return (
     <>
+    <AuthLayout>
       <Helmet>
         <title>Sales Desk | SalesCoaches.ai</title>
         <meta
@@ -609,6 +611,7 @@ const SalesDesk: React.FC = () => {
       </main>
 
       <CoachChatDock />
+      </AuthLayout>
     </>
   );
 };

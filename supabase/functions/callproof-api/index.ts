@@ -19,7 +19,7 @@ const openai = new OpenAI({
   apiKey: Deno.env.get("OPENAI_API_KEY")
 });
 // Handle next page requests for pagination
-async function handleNextPageRequest(lastCtx, apiHeaders, openai, sys_prompt) {
+async function handleNextPageRequest(lastCtx, apiHeaders, openai, sys_prompt,coachId) {
   console.log(`${LOG_PREFIX} ⇢ Handling next page request`);
   const paginationInfo = lastCtx.paginationInfo;
   if (!paginationInfo || !paginationInfo.hasNextPage) {
@@ -61,7 +61,7 @@ async function handleNextPageRequest(lastCtx, apiHeaders, openai, sys_prompt) {
       userId: lastCtx.userId
     }, finalData, "activity", openai, sys_prompt, {
       ...lastCtx
-    });
+    },coachId);
     // Update context with new pagination info
     const newContext = {
       ...lastCtx,
@@ -120,7 +120,6 @@ serve(async (req)=>{
         console.warn(`${LOG_PREFIX} ⇢ Invalid coachId format:`, coachId);
       }
     }
-    console.warn(`${LOG_PREFIX} ⇢ coach ID ------------>`, coachId);
     const apiHeaders = buildAuthHeaders(profile.callproof_api_key, profile.callproof_api_secret);
     console.log(`${LOG_PREFIX} ⇢ API_KEY: ${mask(profile.callproof_api_key)} API_SECRET: ${mask(profile.callproof_api_secret)}`);
     // Load last conversation context
@@ -162,7 +161,7 @@ serve(async (req)=>{
     if (isNextPageRequest && lastCtx.paginationInfo) {
       console.log(`${LOG_PREFIX} ⇢ Next page request detected`);
       // Handle next page fetch
-      return await handleNextPageRequest(lastCtx, apiHeaders, openai, sys_prompt);
+      return await handleNextPageRequest(lastCtx, apiHeaders, openai, sys_prompt,coachId);
     }
     const type = parsed?.type || "crm";
     let finalData = null;
@@ -279,7 +278,7 @@ serve(async (req)=>{
       summary = await summarizeParsed(parsed, finalData, "crm", openai, sys_prompt, {
         ...lastCtx,
         lastFollowUp: lastCtx.nextFollowUp
-      });
+      },coachId);
       // Extract contact info for context storage
       if (action === "contact_search" && finalData) {
         const first = Array.isArray(finalData) ? finalData[0] : Array.isArray(finalData?.data) ? finalData.data[0] : finalData?.data ?? finalData ?? {};
@@ -413,7 +412,7 @@ serve(async (req)=>{
       summary = await summarizeParsed(parsed, finalData, "activity", openai, sys_prompt, {
         ...lastCtx,
         lastFollowUp: lastCtx.nextFollowUp
-      });
+      }, coachId);
     } else if (type === "stats") {
       console.log(`${LOG_PREFIX} ⇢ stats flow`);
       const fromDate = parsed?.from_date || fmtYYYYMMDD(new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
@@ -471,7 +470,7 @@ serve(async (req)=>{
       summary = await summarizeParsed(parsed, statsData, "stats", openai, sys_prompt, {
         ...lastCtx,
         lastFollowUp: lastCtx.nextFollowUp
-      });
+      }, coachId);
     } else {
       console.log(`${LOG_PREFIX} ⇢ General flow (sales assistant)`);
       const completion = await openai.chat.completions.create({

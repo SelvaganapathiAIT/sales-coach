@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.53.0";
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL");
+const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const supabase = createClient(supabaseUrl, key);
+
 const LOG_PREFIX = "[callproof-api|LLM]";
 // ---------- UTILITIES ----------
 function fmtYYYYMMDD(d) {
@@ -15,9 +20,6 @@ function fmtDDMMYYYY(d) {
 }
 // ---------- SUPABASE USERNAME ----------
 export async function getUserName(userId) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-  const supabase = createClient(supabaseUrl, key);
   const { data: profile } = await supabase.from("profiles").select("first_name, last_name").eq("user_id", userId).maybeSingle();
   let username = "";
   if (profile?.first_name || profile?.last_name) {
@@ -402,8 +404,76 @@ IMPORTANT: Always return valid JSON. Use LLM reasoning to parse natural language
 export async function classifyPrompt(prompt, context = {}, openai, conversationHistory = []) {
   return classifyWithLLM(prompt, context, conversationHistory, openai);
 }
+
+// Option dictionaries
+const coachingOptions = {
+  motivational: "Encouraging and supportive approach",
+  direct: "Straightforward, no-nonsense feedback",
+  tough_love: "Challenging but caring approach",
+  analytical: "Data-driven and methodical",
+};
+
+const intensityOptions = {
+  low: "Relaxed coaching sessions, basic feedback",
+  medium: "Focused sessions with actionable insights",
+  high: "Demanding sessions, detailed analysis",
+  maximum: "Elite-level coaching, no stone unturned",
+};
+
+const performanceOptions = {
+  beginner: "Patient approach for new sales reps",
+  intermediate: "Moderate expectations for developing reps",
+  veteran: "High expectations for experienced reps",
+  elite: "Exceptional standards for top performers",
+};
+
+const roastingOptions = {
+  "1": "Your coach will gently remind you about missed activities with encouragement",
+  "2": "Your coach will politely point out missed calls and emails with supportive suggestions",
+  "3": "Your coach will be direct about poor performance and push you to improve",
+  "4": "Your coach will call out excuses and demand better performance with intensity",
+  "5": "Your coach will roast you mercilessly for missed opportunities and poor effort",
+};
+
+
 // ---------- SUMMARIZER ---------- 
-export async function summarizeParsed(parsed, apiData, mode = "crm", openai, sys_prompt, extra = {}) {
+export async function summarizeParsed(parsed, apiData, mode = "crm", openai, sys_prompt, extra = {},coachId = '') {
+  if (coachId !== '') {
+    const { data: assistant, error } = await supabase
+    .from("coach_assistants")
+    .select("*")
+    .eq("coach_id", coachId)
+    .single();
+
+    if (error) {
+      console.error("Error fetching coach assistant:", error);
+    }
+
+    // Map DB values with safe fallbacks
+    const coachingStyle = assistant?.coaching_style || "motivational";
+    const intensityLevel = assistant?.intensity_level || "medium";
+    const performanceStandard = assistant?.performance_standard || "intermediate";
+    const roastingLevel = assistant?.roasting_level || "1";
+
+    // Build assistant config string
+    const styleConfig = `
+      Coaching Style: ${coachingStyle} → ${
+          coachingOptions[coachingStyle] || "Supportive approach"
+        }
+      Intensity: ${intensityLevel} → ${
+          intensityOptions[intensityLevel] || "Balanced coaching intensity"
+        }
+      Performance Standard: ${performanceStandard} → ${
+          performanceOptions[performanceStandard] || "Moderate expectations"
+        }
+      Roasting Level: ${roastingLevel} → ${
+          roastingOptions[roastingLevel] || "No roasting applied"
+        }
+      Language: ${assistant?.agent_language || "en"}
+      `;
+    sys_prompt = (sys_prompt ? sys_prompt + "\n\n" : "") + styleConfig;
+  }
+
   let username = await getUserName(parsed.userId);
   const completion = await openai.chat.completions.create({
     model: "gpt-4o-mini",
@@ -456,7 +526,8 @@ FOLLOW-UP SUGGESTIONS:
   * If multiple pages: prioritize pagination over timeframe changes
 - If mode = "general" → suggest a sales or business related exploration (e.g., "Would you like sales strategy tips ?" or "Do you want to see business performance trends?")
 - Never suggest scheduling, creating, posting, or updating anything.
-        `
+
+  `
       },
       {
         role: "user",
@@ -501,3 +572,4 @@ export async function generateConversationSummary(prompt, response, contactInfo 
   });
   return completion.choices[0].message?.content?.trim() || "";
 }
+
